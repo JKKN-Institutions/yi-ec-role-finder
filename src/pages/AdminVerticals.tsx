@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Edit, Trash2, GripVertical, Download, Upload, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -59,6 +60,8 @@ const AdminVerticals = () => {
   const [editingVertical, setEditingVertical] = useState<Vertical | null>(null);
   const [deletingVertical, setDeletingVertical] = useState<Vertical | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [selectedVerticals, setSelectedVerticals] = useState<string[]>([]);
+  const [deletingSelected, setDeletingSelected] = useState(false);
   const [draggedItem, setDraggedItem] = useState<Vertical | null>(null);
   const [importingVerticals, setImportingVerticals] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -193,6 +196,39 @@ const AdminVerticals = () => {
     } catch (error: any) {
       toast({ title: "Error deactivating verticals", description: error.message, variant: "destructive" });
     }
+  };
+
+  const deleteSelectedVerticals = async () => {
+    try {
+      const { error } = await supabase
+        .from("verticals")
+        .update({ is_active: false })
+        .in("id", selectedVerticals);
+
+      if (error) throw error;
+
+      toast({ title: "Success", description: `${selectedVerticals.length} verticals deactivated successfully` });
+      setDeletingSelected(false);
+      setSelectedVerticals([]);
+      loadData();
+    } catch (error: any) {
+      toast({ title: "Error deactivating verticals", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const toggleSelectAll = () => {
+    const activeVerticals = sortedVerticals.filter(v => v.is_active);
+    if (selectedVerticals.length === activeVerticals.length) {
+      setSelectedVerticals([]);
+    } else {
+      setSelectedVerticals(activeVerticals.map(v => v.id));
+    }
+  };
+
+  const toggleSelectVertical = (id: string) => {
+    setSelectedVerticals(prev => 
+      prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
+    );
   };
 
   const handleDragStart = (vertical: Vertical) => {
@@ -640,19 +676,45 @@ const AdminVerticals = () => {
         </Card>
       </div>
 
-      {/* Sort Options */}
-      <div className="flex items-center gap-4">
-        <Label>Sort by:</Label>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-48 bg-background">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-background">
-            <SelectItem value="display_order">Display Order</SelectItem>
-            <SelectItem value="name">Name (A-Z)</SelectItem>
-            <SelectItem value="popularity">Popularity</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Sort Options and Batch Actions */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Label>Sort by:</Label>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-48 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-background">
+              <SelectItem value="display_order">Display Order</SelectItem>
+              <SelectItem value="name">Name (A-Z)</SelectItem>
+              <SelectItem value="popularity">Popularity</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="select-all" 
+              checked={selectedVerticals.length === sortedVerticals.filter(v => v.is_active).length && selectedVerticals.length > 0}
+              onCheckedChange={toggleSelectAll}
+            />
+            <Label htmlFor="select-all" className="cursor-pointer">
+              Select All ({selectedVerticals.length})
+            </Label>
+          </div>
+          
+          {selectedVerticals.length > 0 && (
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => setDeletingSelected(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Selected ({selectedVerticals.length})
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Verticals Grid */}
@@ -671,15 +733,24 @@ const AdminVerticals = () => {
             )}
           >
             <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    {reorderMode && <GripVertical className="h-5 w-5 text-muted-foreground" />}
-                    <CardTitle className="text-lg">{vertical.name}</CardTitle>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1">
+                  {!reorderMode && vertical.is_active && (
+                    <Checkbox 
+                      checked={selectedVerticals.includes(vertical.id)}
+                      onCheckedChange={() => toggleSelectVertical(vertical.id)}
+                      className="mt-1"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      {reorderMode && <GripVertical className="h-5 w-5 text-muted-foreground" />}
+                      <CardTitle className="text-lg">{vertical.name}</CardTitle>
+                    </div>
+                    <Badge variant="outline" className="mt-1">
+                      Order: {vertical.display_order}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="mt-1">
-                    Order: {vertical.display_order}
-                  </Badge>
                 </div>
                 <div className="flex items-center">
                   {vertical.is_active ? (
@@ -798,6 +869,30 @@ const AdminVerticals = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={deleteAllVerticals} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Selected Confirmation */}
+      <AlertDialog open={deletingSelected} onOpenChange={setDeletingSelected}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Verticals?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate {selectedVerticals.length} selected verticals. 
+              <br />
+              <br />
+              This will not affect past assessments, but these verticals won't appear in new ones.
+              <br />
+              <br />
+              You can reactivate them later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteSelectedVerticals} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Selected
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
