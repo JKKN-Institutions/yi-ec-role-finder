@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, LayoutDashboard } from "lucide-react";
+import { LogOut, LayoutDashboard, Target } from "lucide-react";
 
 export const Navbar = () => {
   const navigate = useNavigate();
@@ -56,8 +56,8 @@ export const Navbar = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center space-x-2">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
-              Yi
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white">
+              <Target className="h-5 w-5" />
             </div>
             <span className="font-semibold text-lg">Role Finder Assessment</span>
           </div>
