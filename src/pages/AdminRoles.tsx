@@ -98,40 +98,59 @@ const AdminRoles = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Get all users with roles
+      // Get all users who have submitted assessments
+      const { data: assessmentsData, error: assessmentsError } = await supabase
+        .from("assessments")
+        .select("user_email, user_name, created_at");
+
+      if (assessmentsError) throw assessmentsError;
+
+      // Get unique emails and their earliest submission
+      const emailMap = new Map<string, { email: string; name: string; created_at: string }>();
+      assessmentsData?.forEach((assessment: any) => {
+        if (!emailMap.has(assessment.user_email)) {
+          emailMap.set(assessment.user_email, {
+            email: assessment.user_email,
+            name: assessment.user_name,
+            created_at: assessment.created_at,
+          });
+        }
+      });
+
+      // Get all roles
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
 
       if (rolesError) throw rolesError;
 
-      // Get profiles for all users with roles
-      const userIds = [...new Set(rolesData?.map(r => r.user_id) || [])];
-      
+      // Get all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, full_name, created_at")
-        .in("id", userIds);
+        .select("id, full_name, created_at");
 
       if (profilesError) throw profilesError;
 
-      // We can't directly query auth.users, so we'll use what we have
+      // Create a map of email -> user_id from profiles (we need to match by name since we don't have email in profiles)
+      const profilesByName = new Map(profilesData?.map((p: any) => [p.full_name, p]) || []);
+
       // Combine the data
-      const usersMap = new Map<string, UserWithRoles>();
-      
-      profilesData?.forEach((profile: any) => {
-        const userRoles = rolesData?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
-        usersMap.set(profile.id, {
-          id: profile.id,
-          email: "", // We'll need to get this from somewhere
-          full_name: profile.full_name,
-          created_at: profile.created_at,
+      const usersArray: UserWithRoles[] = Array.from(emailMap.values()).map(({ email, name, created_at }) => {
+        const profile = profilesByName.get(name);
+        const userId = profile?.id || "";
+        const userRoles = rolesData?.filter(r => r.user_id === userId).map(r => r.role) || [];
+
+        return {
+          id: userId,
+          email,
+          full_name: name,
+          created_at,
           last_sign_in_at: null,
           roles: userRoles,
-        });
+        };
       });
 
-      setUsers(Array.from(usersMap.values()));
+      setUsers(usersArray);
 
       // Load audit log
       const { data: auditData } = await supabase
@@ -219,29 +238,39 @@ const AdminRoles = () => {
     if (formData.get("role_co_chair")) newRoles.push("co_chair");
     if (formData.get("role_em")) newRoles.push("em");
 
-    if (newRoles.length === 0) {
-      toast({
-        title: "Warning",
-        description: "User will lose dashboard access",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       const { data: currentUser } = await supabase.auth.getUser();
+
+      // If user doesn't have a profile/auth entry yet, we need to create one first
+      if (!editingUser.id) {
+        // Find or create auth user
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: editingUser.email,
+          email_confirm: true,
+          user_metadata: {
+            full_name: editingUser.full_name,
+          },
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error("Failed to create user");
+
+        editingUser.id = authData.user.id;
+      }
 
       // Delete all existing roles
       await supabase.from("user_roles").delete().eq("user_id", editingUser.id);
 
-      // Insert new roles
-      const roleInserts = newRoles.map(role => ({
-        user_id: editingUser.id,
-        role: role as "admin" | "chair" | "co_chair" | "em",
-      }));
+      // Insert new roles (only if there are any)
+      if (newRoles.length > 0) {
+        const roleInserts = newRoles.map(role => ({
+          user_id: editingUser.id,
+          role: role as "admin" | "chair" | "co_chair" | "em",
+        }));
 
-      const { error } = await supabase.from("user_roles").insert(roleInserts);
-      if (error) throw error;
+        const { error } = await supabase.from("user_roles").insert(roleInserts);
+        if (error) throw error;
+      }
 
       // Log audit for added/removed roles
       const addedRoles = newRoles.filter(r => !editingUser.roles.includes(r));
@@ -324,7 +353,11 @@ const AdminRoles = () => {
     let filtered = [...users];
 
     if (roleFilter !== "all") {
-      filtered = filtered.filter(u => u.roles.includes(roleFilter));
+      if (roleFilter === "none") {
+        filtered = filtered.filter(u => u.roles.length === 0);
+      } else {
+        filtered = filtered.filter(u => u.roles.includes(roleFilter));
+      }
     }
 
     filtered.sort((a, b) => {
@@ -351,7 +384,7 @@ const AdminRoles = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">User Roles Management</h1>
-          <p className="text-muted-foreground">Manage admin access and permissions</p>
+          <p className="text-muted-foreground">Assign admin roles to assessment submitters</p>
         </div>
         <div className="flex gap-2">
           <Dialog open={addingUser} onOpenChange={setAddingUser}>
@@ -429,7 +462,7 @@ const AdminRoles = () => {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle>Total Admins</CardTitle>
+            <CardTitle>Total Users</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">{users.length}</p>
@@ -437,7 +470,7 @@ const AdminRoles = () => {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Full Admins</CardTitle>
+            <CardTitle>Admins</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">{users.filter(u => u.roles.includes("admin")).length}</p>
@@ -445,7 +478,7 @@ const AdminRoles = () => {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Chairs</CardTitle>
+            <CardTitle>Chairs & Co-Chairs</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">
@@ -491,7 +524,8 @@ const AdminRoles = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-background">
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="none">No Roles</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
               <SelectItem value="chair">Chair</SelectItem>
               <SelectItem value="co_chair">Co-Chair</SelectItem>
@@ -535,13 +569,17 @@ const AdminRoles = () => {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.full_name || "—"}</TableCell>
                   <TableCell>{user.email || "—"}</TableCell>
-                  <TableCell>
+                   <TableCell>
                     <div className="flex gap-1 flex-wrap">
-                      {user.roles.map(role => (
-                        <Badge key={role} className={ROLE_COLORS[role]}>
-                          {role}
-                        </Badge>
-                      ))}
+                      {user.roles.length > 0 ? (
+                        user.roles.map(role => (
+                          <Badge key={role} className={ROLE_COLORS[role]}>
+                            {role}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">No roles</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{format(new Date(user.created_at), "MMM dd, yyyy")}</TableCell>
@@ -551,14 +589,16 @@ const AdminRoles = () => {
                         <Edit className="h-4 w-4 mr-1" />
                         Manage
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setRemovingUser(user)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Remove
-                      </Button>
+                      {user.roles.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRemovingUser(user)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -579,15 +619,19 @@ const AdminRoles = () => {
           </DialogHeader>
           {editingUser && (
             <form data-edit-roles>
-              <div className="space-y-4">
+               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Current roles:</p>
                   <div className="flex gap-1 flex-wrap">
-                    {editingUser.roles.map(role => (
-                      <Badge key={role} className={ROLE_COLORS[role]}>
-                        {role}
-                      </Badge>
-                    ))}
+                    {editingUser.roles.length > 0 ? (
+                      editingUser.roles.map(role => (
+                        <Badge key={role} className={ROLE_COLORS[role]}>
+                          {role}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No roles assigned</span>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -650,15 +694,15 @@ const AdminRoles = () => {
       <AlertDialog open={!!removingUser} onOpenChange={() => setRemovingUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Admin Access?</AlertDialogTitle>
+            <AlertDialogTitle>Remove All Roles?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will revoke all admin access for {removingUser?.full_name || removingUser?.email}.
+              This will revoke all admin roles for {removingUser?.full_name || removingUser?.email}.
               <br />
               <br />
-              They can still complete assessments as a candidate.
+              They will no longer have access to the admin dashboard, but can still complete assessments as a candidate.
               <br />
               <br />
-              This action can be reversed by re-adding them.
+              You can re-assign roles to them at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
