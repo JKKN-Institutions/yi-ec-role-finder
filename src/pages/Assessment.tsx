@@ -104,7 +104,6 @@ const Assessment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [validationError, setValidationError] = useState("");
-  const [showDescriptions, setShowDescriptions] = useState(false);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -348,6 +347,13 @@ const Assessment = () => {
                       ))}
                   </SelectContent>
                 </Select>
+                {currentResponse.priority2 && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {verticals.find((v) => v.id === currentResponse.priority2)?.description}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -382,42 +388,15 @@ const Assessment = () => {
                       ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
-
-            {/* Toggle Descriptions Button */}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full mt-6"
-              onClick={() => setShowDescriptions(!showDescriptions)}
-            >
-              {showDescriptions ? (
-                <>
-                  <span className="mr-2">▲</span>
-                  Hide vertical descriptions
-                </>
-              ) : (
-                <>
-                  <span className="mr-2">▼</span>
-                  Show vertical descriptions
-                </>
-              )}
-            </Button>
-
-            {/* Vertical Descriptions */}
-            {showDescriptions && (
-              <div className="space-y-4 mt-6 p-4 bg-muted/50 rounded-lg">
-                {verticals.map((vertical) => (
-                  <div key={vertical.id} className="space-y-2">
-                    <h3 className="font-bold text-base">{vertical.name}</h3>
+                {currentResponse.priority3 && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      {vertical.description}
+                      {verticals.find((v) => v.id === currentResponse.priority3)?.description}
                     </p>
                   </div>
-                ))}
+                )}
               </div>
-            )}
+            </div>
           </div>
         );
 
