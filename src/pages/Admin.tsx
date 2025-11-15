@@ -5,10 +5,13 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminOverview } from "@/components/admin/AdminOverview";
+import AdminComparison from "./AdminComparison";
 import { Loader2 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 const Admin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
@@ -50,14 +53,17 @@ const Admin = () => {
     return null;
   }
 
+  const isComparisonPage = location.pathname === "/admin/comparison";
+  const breadcrumb = isComparisonPage ? "Comparison" : "Overview";
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
         <div className="flex-1 flex flex-col">
-          <AdminHeader breadcrumb="Overview" />
+          <AdminHeader breadcrumb={breadcrumb} />
           <main className="flex-1 overflow-auto">
-            <AdminOverview />
+            {isComparisonPage ? <AdminComparison /> : <AdminOverview />}
           </main>
         </div>
       </div>
