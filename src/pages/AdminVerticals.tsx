@@ -358,7 +358,7 @@ const AdminVerticals = () => {
           name: row.name,
           description: row.description,
           display_order: parseInt(row.display_order) || index + 1,
-          is_active: row.is_active.toLowerCase() === "true",
+          is_active: row.is_active ? row.is_active.toLowerCase() !== "false" : true,
           valid: row.name && row.description,
         };
       });
