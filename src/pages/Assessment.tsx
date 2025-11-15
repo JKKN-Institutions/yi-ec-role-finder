@@ -737,8 +737,8 @@ const Assessment = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         {/* Progress Section */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-1">
             <span className="text-sm text-muted-foreground">
               Question {currentQuestion} of 5
             </span>
@@ -746,7 +746,7 @@ const Assessment = () => {
               {Math.round(progress)}%
             </span>
           </div>
-          <Progress value={progress} className="h-2 mb-4" />
+          <Progress value={progress} className="h-2 mb-2" />
           
           {/* Progress Dots */}
           <div className="flex justify-center gap-2">
