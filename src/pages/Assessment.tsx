@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, Loader2, Info, List } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, Info, List, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Vertical = {
@@ -120,6 +120,11 @@ const Assessment = () => {
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [validationError, setValidationError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<{
+    priority1: boolean;
+    priority2: boolean;
+    priority3: boolean;
+  }>({ priority1: false, priority2: false, priority3: false });
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -299,6 +304,50 @@ const Assessment = () => {
   const renderQuestion = () => {
     const question = questionDefinitions[currentQuestion - 1];
 
+    const DescriptionBox = ({ 
+      description, 
+      priorityKey 
+    }: { 
+      description: string | null | undefined; 
+      priorityKey: 'priority1' | 'priority2' | 'priority3' 
+    }) => {
+      if (!description) return null;
+      
+      const isExpanded = expandedDescriptions[priorityKey];
+      const CHAR_LIMIT = 150;
+      const needsTruncation = description.length > CHAR_LIMIT;
+      const displayText = needsTruncation && !isExpanded 
+        ? description.substring(0, CHAR_LIMIT) + '...' 
+        : description;
+
+      return (
+        <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {displayText}
+          </p>
+          {needsTruncation && (
+            <button
+              onClick={() => setExpandedDescriptions(prev => ({
+                ...prev,
+                [priorityKey]: !prev[priorityKey]
+              }))}
+              className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+            >
+              {isExpanded ? (
+                <>
+                  Read Less <ChevronUp className="w-3 h-3" />
+                </>
+              ) : (
+                <>
+                  Read More <ChevronDown className="w-3 h-3" />
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      );
+    };
+
     switch (question.type) {
       case "vertical-select":
         return (
@@ -384,11 +433,10 @@ const Assessment = () => {
                       transition={{ duration: 0.3, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {verticals.find((v) => v.id === currentResponse.priority1)?.description}
-                        </p>
-                      </div>
+                      <DescriptionBox 
+                        description={verticals.find((v) => v.id === currentResponse.priority1)?.description}
+                        priorityKey="priority1"
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -445,11 +493,10 @@ const Assessment = () => {
                       transition={{ duration: 0.3, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {verticals.find((v) => v.id === currentResponse.priority2)?.description}
-                        </p>
-                      </div>
+                      <DescriptionBox 
+                        description={verticals.find((v) => v.id === currentResponse.priority2)?.description}
+                        priorityKey="priority2"
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -510,11 +557,10 @@ const Assessment = () => {
                       transition={{ duration: 0.3, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {verticals.find((v) => v.id === currentResponse.priority3)?.description}
-                        </p>
-                      </div>
+                      <DescriptionBox 
+                        description={verticals.find((v) => v.id === currentResponse.priority3)?.description}
+                        priorityKey="priority3"
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
