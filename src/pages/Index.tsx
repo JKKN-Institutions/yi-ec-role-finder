@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Users, TrendingUp, Target } from "lucide-react";
+import { Target } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const emailSchema = z.object({
@@ -21,19 +21,7 @@ const Index = () => {
   const [showModal, setShowModal] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [totalAssessments, setTotalAssessments] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      const { count } = await supabase
-        .from("assessments")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "completed");
-      setTotalAssessments(count || 0);
-    };
-    fetchStats();
-  }, []);
 
   const handleStartAssessment = async () => {
     try {
@@ -101,26 +89,6 @@ const Index = () => {
             >
               Start Assessment
             </Button>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12">
-              <div className="p-6 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
-                <Users className="h-8 w-8 text-primary mb-3 mx-auto" />
-                <div className="text-3xl font-bold mb-2">{totalAssessments}+</div>
-                <div className="text-sm text-muted-foreground">Assessments Completed</div>
-              </div>
-
-              <div className="p-6 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
-                <TrendingUp className="h-8 w-8 text-accent mb-3 mx-auto" />
-                <div className="text-3xl font-bold mb-2">5</div>
-                <div className="text-sm text-muted-foreground">Minutes to Complete</div>
-              </div>
-
-              <div className="p-6 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
-                <Target className="h-8 w-8 text-primary mb-3 mx-auto" />
-                <div className="text-3xl font-bold mb-2">6</div>
-                <div className="text-sm text-muted-foreground">Vertical Options</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
