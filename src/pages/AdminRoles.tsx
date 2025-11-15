@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Plus, Edit, Trash2, Download, Info } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Download, Info, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -89,6 +89,7 @@ const AdminRoles = () => {
   const [removingUser, setRemovingUser] = useState<UserWithRoles | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("created_at");
+  const [generatedPassword, setGeneratedPassword] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -166,11 +167,27 @@ const AdminRoles = () => {
     setLoading(false);
   };
 
+  const generatePassword = () => {
+    const length = 16;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setGeneratedPassword(password);
+  };
+
+  const copyPassword = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    toast({ title: "Password copied to clipboard" });
+  };
+
   const addUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const fullName = formData.get("full_name") as string;
+    const password = formData.get("password") as string;
     const roles: string[] = [];
 
     if (formData.get("role_admin")) roles.push("admin");
@@ -183,12 +200,18 @@ const AdminRoles = () => {
       return;
     }
 
+    if (!password) {
+      toast({ title: "Error", description: "Please generate a password", variant: "destructive" });
+      return;
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('manage-user-roles', {
         body: {
           action: 'update_roles',
           email,
           fullName,
+          password,
           roles
         }
       });
@@ -196,9 +219,10 @@ const AdminRoles = () => {
       if (error) throw error;
       if (!data?.success) throw new Error('Failed to create user');
 
-      toast({ title: "User created! A password reset email has been sent to set up their account." });
+      toast({ title: "User created successfully! Share the password with them." });
       loadData();
       setAddingUser(false);
+      setGeneratedPassword("");
     } catch (error: any) {
       toast({ title: "Error creating user", description: error.message, variant: "destructive" });
     }
@@ -321,7 +345,10 @@ const AdminRoles = () => {
           <p className="text-muted-foreground">Assign admin roles to assessment submitters</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={addingUser} onOpenChange={setAddingUser}>
+          <Dialog open={addingUser} onOpenChange={(open) => {
+            setAddingUser(open);
+            if (!open) setGeneratedPassword("");
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -342,6 +369,33 @@ const AdminRoles = () => {
                   <div>
                     <Label>Full Name *</Label>
                     <Input name="full_name" required placeholder="John Doe" />
+                  </div>
+                  <div>
+                    <Label>Password *</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        name="password" 
+                        type="text" 
+                        value={generatedPassword}
+                        onChange={(e) => setGeneratedPassword(e.target.value)}
+                        required 
+                        placeholder="Click Generate to create password"
+                        className="font-mono"
+                      />
+                      <Button type="button" variant="outline" onClick={generatePassword}>
+                        Generate
+                      </Button>
+                      {generatedPassword && (
+                        <Button type="button" variant="outline" onClick={copyPassword} size="icon">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {generatedPassword && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Copy this password and share it with the user. They can change it after logging in.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label>Initial Roles (select 1+) *</Label>
@@ -375,7 +429,7 @@ const AdminRoles = () => {
                   <Alert>
                     <Info className="h-4 w-4" />
                     <AlertDescription>
-                      User will receive an email with login instructions
+                      Generate a secure password and share it with the user directly
                     </AlertDescription>
                   </Alert>
                 </div>
