@@ -184,37 +184,17 @@ const AdminRoles = () => {
     }
 
     try {
-      // Create user via Supabase Admin API
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: fullName,
-        },
+      const { data, error } = await supabase.functions.invoke('manage-user-roles', {
+        body: {
+          action: 'update_roles',
+          email,
+          fullName,
+          roles
+        }
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Failed to create user");
-
-      const userId = authData.user.id;
-      const { data: currentUser } = await supabase.auth.getUser();
-
-      // Insert roles
-      const roleInserts = roles.map(role => ({
-        user_id: userId,
-        role: role as "admin" | "chair" | "co_chair" | "em",
-      }));
-
-      const { error: rolesError } = await supabase.from("user_roles").insert(roleInserts);
-      if (rolesError) throw rolesError;
-
-      // Log audit
-      await supabase.from("user_role_audit").insert({
-        action: "created_user",
-        performed_by: currentUser.user?.id,
-        affected_user: userId,
-        role_name: roles.join(", "),
-      });
+      if (error) throw error;
+      if (!data?.success) throw new Error('Failed to create user');
 
       toast({ title: "Admin user created successfully" });
       loadData();
@@ -239,61 +219,17 @@ const AdminRoles = () => {
     if (formData.get("role_em")) newRoles.push("em");
 
     try {
-      const { data: currentUser } = await supabase.auth.getUser();
-
-      // If user doesn't have a profile/auth entry yet, we need to create one first
-      if (!editingUser.id) {
-        // Find or create auth user
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      const { data, error } = await supabase.functions.invoke('manage-user-roles', {
+        body: {
+          action: 'update_roles',
           email: editingUser.email,
-          email_confirm: true,
-          user_metadata: {
-            full_name: editingUser.full_name,
-          },
-        });
+          fullName: editingUser.full_name,
+          roles: newRoles
+        }
+      });
 
-        if (authError) throw authError;
-        if (!authData.user) throw new Error("Failed to create user");
-
-        editingUser.id = authData.user.id;
-      }
-
-      // Delete all existing roles
-      await supabase.from("user_roles").delete().eq("user_id", editingUser.id);
-
-      // Insert new roles (only if there are any)
-      if (newRoles.length > 0) {
-        const roleInserts = newRoles.map(role => ({
-          user_id: editingUser.id,
-          role: role as "admin" | "chair" | "co_chair" | "em",
-        }));
-
-        const { error } = await supabase.from("user_roles").insert(roleInserts);
-        if (error) throw error;
-      }
-
-      // Log audit for added/removed roles
-      const addedRoles = newRoles.filter(r => !editingUser.roles.includes(r));
-      const removedRoles = editingUser.roles.filter(r => !newRoles.includes(r));
-
-      const auditInserts = [
-        ...addedRoles.map(role => ({
-          action: "added_role" as const,
-          performed_by: currentUser.user?.id,
-          affected_user: editingUser.id,
-          role_name: role,
-        })),
-        ...removedRoles.map(role => ({
-          action: "removed_role" as const,
-          performed_by: currentUser.user?.id,
-          affected_user: editingUser.id,
-          role_name: role,
-        })),
-      ];
-
-      if (auditInserts.length > 0) {
-        await supabase.from("user_role_audit").insert(auditInserts);
-      }
+      if (error) throw error;
+      if (!data?.success) throw new Error('Failed to update roles');
 
       toast({ title: `Roles updated for ${editingUser.full_name || editingUser.email}` });
       loadData();
@@ -307,17 +243,15 @@ const AdminRoles = () => {
     if (!removingUser) return;
 
     try {
-      const { data: currentUser } = await supabase.auth.getUser();
-
-      // Delete all roles
-      await supabase.from("user_roles").delete().eq("user_id", removingUser.id);
-
-      // Log audit
-      await supabase.from("user_role_audit").insert({
-        action: "removed_access",
-        performed_by: currentUser.user?.id,
-        affected_user: removingUser.id,
+      const { data, error } = await supabase.functions.invoke('manage-user-roles', {
+        body: {
+          action: 'remove_roles',
+          email: removingUser.email
+        }
       });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error('Failed to remove roles');
 
       toast({ title: `${removingUser.full_name || removingUser.email} removed from admin access` });
       loadData();
