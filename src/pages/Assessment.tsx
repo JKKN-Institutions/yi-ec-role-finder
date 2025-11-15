@@ -314,36 +314,29 @@ const Assessment = () => {
       if (!description) return null;
       
       const isExpanded = expandedDescriptions[priorityKey];
-      const CHAR_LIMIT = 150;
-      const needsTruncation = description.length > CHAR_LIMIT;
-      const displayText = needsTruncation && !isExpanded 
-        ? description.substring(0, CHAR_LIMIT) + '...' 
-        : description;
 
       return (
         <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {displayText}
+          <p className={`text-sm text-muted-foreground leading-relaxed ${!isExpanded ? 'line-clamp-1' : ''}`}>
+            {description}
           </p>
-          {needsTruncation && (
-            <button
-              onClick={() => setExpandedDescriptions(prev => ({
-                ...prev,
-                [priorityKey]: !prev[priorityKey]
-              }))}
-              className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
-            >
-              {isExpanded ? (
-                <>
-                  Read Less <ChevronUp className="w-3 h-3" />
-                </>
-              ) : (
-                <>
-                  Read More <ChevronDown className="w-3 h-3" />
-                </>
-              )}
-            </button>
-          )}
+          <button
+            onClick={() => setExpandedDescriptions(prev => ({
+              ...prev,
+              [priorityKey]: !prev[priorityKey]
+            }))}
+            className="mt-1.5 text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+          >
+            {isExpanded ? (
+              <>
+                Read Less <ChevronUp className="w-3 h-3" />
+              </>
+            ) : (
+              <>
+                Read More <ChevronDown className="w-3 h-3" />
+              </>
+            )}
+          </button>
         </div>
       );
     };
