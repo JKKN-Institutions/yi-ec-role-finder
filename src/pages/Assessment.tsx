@@ -21,6 +21,7 @@ import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 type Vertical = {
   id: string;
   name: string;
+  description: string | null;
 };
 
 type QuestionResponse = {
@@ -103,6 +104,7 @@ const Assessment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [validationError, setValidationError] = useState("");
+  const [showDescriptions, setShowDescriptions] = useState(false);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -148,7 +150,7 @@ const Assessment = () => {
     const loadVerticals = async () => {
       const { data } = await supabase
         .from("verticals")
-        .select("id, name")
+        .select("id, name, description")
         .eq("is_active", true)
         .order("display_order");
       if (data) setVerticals(data);
@@ -292,7 +294,12 @@ const Assessment = () => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="priority1" className="text-base font-medium">
-                  Priority 1 (Required)
+                  <span className="inline-flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                      1
+                    </span>
+                    First Priority (Required)
+                  </span>
                 </Label>
                 <Select
                   value={currentResponse.priority1 || ""}
@@ -303,7 +310,7 @@ const Assessment = () => {
                   <SelectTrigger id="priority1" className="mt-2">
                     <SelectValue placeholder="Select your top choice" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background">
                     {verticals.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.name}
@@ -315,7 +322,12 @@ const Assessment = () => {
 
               <div>
                 <Label htmlFor="priority2" className="text-base font-medium">
-                  Priority 2 (Optional)
+                  <span className="inline-flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-muted-foreground text-sm font-bold">
+                      2
+                    </span>
+                    Second Priority (Optional)
+                  </span>
                 </Label>
                 <Select
                   value={currentResponse.priority2 || ""}
@@ -326,7 +338,7 @@ const Assessment = () => {
                   <SelectTrigger id="priority2" className="mt-2">
                     <SelectValue placeholder="Select your second choice" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background">
                     {verticals
                       .filter((v) => v.id !== currentResponse.priority1)
                       .map((v) => (
@@ -340,7 +352,12 @@ const Assessment = () => {
 
               <div>
                 <Label htmlFor="priority3" className="text-base font-medium">
-                  Priority 3 (Optional)
+                  <span className="inline-flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-muted-foreground text-sm font-bold">
+                      3
+                    </span>
+                    Third Priority (Optional)
+                  </span>
                 </Label>
                 <Select
                   value={currentResponse.priority3 || ""}
@@ -351,7 +368,7 @@ const Assessment = () => {
                   <SelectTrigger id="priority3" className="mt-2">
                     <SelectValue placeholder="Select your third choice" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background">
                     {verticals
                       .filter(
                         (v) =>
@@ -367,6 +384,40 @@ const Assessment = () => {
                 </Select>
               </div>
             </div>
+
+            {/* Toggle Descriptions Button */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full mt-6"
+              onClick={() => setShowDescriptions(!showDescriptions)}
+            >
+              {showDescriptions ? (
+                <>
+                  <span className="mr-2">▲</span>
+                  Hide vertical descriptions
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">▼</span>
+                  Show vertical descriptions
+                </>
+              )}
+            </Button>
+
+            {/* Vertical Descriptions */}
+            {showDescriptions && (
+              <div className="space-y-4 mt-6 p-4 bg-muted/50 rounded-lg">
+                {verticals.map((vertical) => (
+                  <div key={vertical.id} className="space-y-2">
+                    <h3 className="font-bold text-base">{vertical.name}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {vertical.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
