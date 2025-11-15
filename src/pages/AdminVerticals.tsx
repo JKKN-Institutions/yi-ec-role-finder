@@ -59,6 +59,9 @@ const AdminVerticals = () => {
   const [editingVertical, setEditingVertical] = useState<Vertical | null>(null);
   const [deletingVertical, setDeletingVertical] = useState<Vertical | null>(null);
   const [draggedItem, setDraggedItem] = useState<Vertical | null>(null);
+  const [importingVerticals, setImportingVerticals] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -229,6 +232,135 @@ const AdminVerticals = () => {
     toast({ title: "Verticals exported" });
   };
 
+  const downloadTemplate = () => {
+    const csv = [
+      ["name", "description", "display_order", "is_active"],
+      ["Membership Growth", "Focus on expanding membership base and engagement", "1", "true"],
+      ["Community Service", "Organize and execute community service projects", "2", "true"],
+      ["Professional Development", "Enhance skills and career growth opportunities", "3", "true"],
+    ]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "verticals-import-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Template downloaded", description: "Fill in the CSV with your verticals data" });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".csv")) {
+      toast({ title: "Invalid file type", description: "Please upload a CSV file", variant: "destructive" });
+      return;
+    }
+
+    setImportFile(file);
+
+    // Parse CSV file
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split("\n").filter((line) => line.trim());
+      
+      if (lines.length < 2) {
+        toast({ title: "Empty file", description: "CSV file has no data", variant: "destructive" });
+        return;
+      }
+
+      // Parse header
+      const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim().toLowerCase());
+      
+      // Validate headers
+      const requiredHeaders = ["name", "description", "display_order", "is_active"];
+      const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h));
+      
+      if (missingHeaders.length > 0) {
+        toast({
+          title: "Invalid CSV format",
+          description: `Missing columns: ${missingHeaders.join(", ")}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Parse data rows
+      const preview = lines.slice(1).map((line, index) => {
+        const values = line.split(",").map((v) => v.replace(/"/g, "").trim());
+        const row: any = {};
+        
+        headers.forEach((header, i) => {
+          row[header] = values[i] || "";
+        });
+
+        return {
+          rowNumber: index + 2,
+          name: row.name,
+          description: row.description,
+          display_order: parseInt(row.display_order) || index + 1,
+          is_active: row.is_active.toLowerCase() === "true",
+          valid: row.name && row.description,
+        };
+      });
+
+      setImportPreview(preview);
+    };
+
+    reader.readAsText(file);
+  };
+
+  const executeBulkImport = async () => {
+    if (importPreview.length === 0) {
+      toast({ title: "No data to import", variant: "destructive" });
+      return;
+    }
+
+    const invalidRows = importPreview.filter((row) => !row.valid);
+    if (invalidRows.length > 0) {
+      toast({
+        title: "Validation failed",
+        description: `${invalidRows.length} rows have missing name or description`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const verticalsToInsert = importPreview.map((row) => ({
+        name: row.name,
+        description: row.description,
+        display_order: row.display_order,
+        is_active: row.is_active,
+      }));
+
+      const { error } = await supabase.from("verticals").insert(verticalsToInsert);
+
+      if (error) throw error;
+
+      toast({
+        title: "Import successful",
+        description: `${importPreview.length} verticals imported`,
+      });
+
+      setImportingVerticals(false);
+      setImportFile(null);
+      setImportPreview([]);
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: "Import failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getVerticalPopularity = () => {
     const popularity: { [key: string]: { p1: number; p2: number; p3: number } } = {};
 
@@ -320,6 +452,112 @@ const AdminVerticals = () => {
                   <Button type="submit">Create Vertical</Button>
                 </DialogFooter>
               </form>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={downloadTemplate}>
+            <Download className="h-4 w-4 mr-2" />
+            Download Template
+          </Button>
+          <Dialog open={importingVerticals} onOpenChange={setImportingVerticals}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="h-4 w-4 mr-2" />
+                Bulk Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Bulk Import Verticals</DialogTitle>
+                <DialogDescription>
+                  Upload a CSV file to import multiple verticals at once
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="csv-upload">Choose CSV File</Label>
+                  <Input
+                    id="csv-upload"
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="mt-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    CSV must include columns: name, description, display_order, is_active
+                  </p>
+                </div>
+
+                {importPreview.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">
+                      Preview ({importPreview.length} rows)
+                    </h3>
+                    <div className="border rounded-lg max-h-96 overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted sticky top-0">
+                          <tr>
+                            <th className="p-2 text-left">#</th>
+                            <th className="p-2 text-left">Name</th>
+                            <th className="p-2 text-left">Description</th>
+                            <th className="p-2 text-center">Order</th>
+                            <th className="p-2 text-center">Active</th>
+                            <th className="p-2 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.map((row) => (
+                            <tr
+                              key={row.rowNumber}
+                              className={row.valid ? "" : "bg-destructive/10"}
+                            >
+                              <td className="p-2">{row.rowNumber}</td>
+                              <td className="p-2">{row.name || "—"}</td>
+                              <td className="p-2 text-xs truncate max-w-xs">
+                                {row.description || "—"}
+                              </td>
+                              <td className="p-2 text-center">{row.display_order}</td>
+                              <td className="p-2 text-center">
+                                {row.is_active ? (
+                                  <Check className="h-4 w-4 text-green-500 mx-auto" />
+                                ) : (
+                                  <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                                )}
+                              </td>
+                              <td className="p-2 text-center">
+                                {row.valid ? (
+                                  <Badge variant="outline" className="bg-green-50">
+                                    Valid
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="destructive">Invalid</Badge>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setImportingVerticals(false);
+                    setImportFile(null);
+                    setImportPreview([]);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={executeBulkImport}
+                  disabled={importPreview.length === 0}
+                >
+                  Import {importPreview.length} Verticals
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
           <Button variant="outline" onClick={() => setReorderMode(!reorderMode)}>
