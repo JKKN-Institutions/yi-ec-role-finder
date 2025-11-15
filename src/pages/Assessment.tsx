@@ -780,13 +780,13 @@ const Assessment = () => {
             </div>
           )}
 
-          <div className="mobile-footer mt-6 md:mt-8 flex flex-col sm:flex-row justify-between gap-2">
+          <div className="mobile-footer mt-4 md:mt-6 flex flex-col sm:flex-row justify-between gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handlePrevious}
               disabled={currentQuestion === 1}
-              className="btn-mobile w-full sm:w-auto"
+              className="btn-mobile w-full sm:w-auto text-sm"
               aria-label="Go to previous question"
             >
               <ArrowLeft className="mr-2 h-3 w-3" aria-hidden="true" />
@@ -797,7 +797,7 @@ const Assessment = () => {
               <Button 
                 onClick={handleNext}
                 size="sm"
-                className="btn-mobile w-full sm:w-auto"
+                className="btn-mobile w-full sm:w-auto text-sm"
                 aria-label="Go to next question"
               >
                 Next
@@ -808,7 +808,7 @@ const Assessment = () => {
                 onClick={handleSubmit}
                 size="sm"
                 disabled={isSubmitting} 
-                className="btn-mobile w-full sm:w-auto"
+                className="btn-mobile w-full sm:w-auto text-sm"
                 aria-label="Submit assessment"
               >
                 {isSubmitting ? (
