@@ -218,11 +218,10 @@ const AdminVerticals = () => {
   };
 
   const toggleSelectAll = () => {
-    const activeVerticals = sortedVerticals.filter(v => v.is_active);
-    if (selectedVerticals.length === activeVerticals.length) {
+    if (selectedVerticals.length === sortedVerticals.length) {
       setSelectedVerticals([]);
     } else {
-      setSelectedVerticals(activeVerticals.map(v => v.id));
+      setSelectedVerticals(sortedVerticals.map(v => v.id));
     }
   };
 
@@ -697,7 +696,7 @@ const AdminVerticals = () => {
           <div className="flex items-center gap-2">
             <Checkbox 
               id="select-all" 
-              checked={selectedVerticals.length === sortedVerticals.filter(v => v.is_active).length && selectedVerticals.length > 0}
+              checked={selectedVerticals.length === sortedVerticals.length && selectedVerticals.length > 0}
               onCheckedChange={toggleSelectAll}
             />
             <Label htmlFor="select-all" className="cursor-pointer">
@@ -736,7 +735,7 @@ const AdminVerticals = () => {
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 flex-1">
-                  {!reorderMode && vertical.is_active && (
+                  {!reorderMode && (
                     <Checkbox 
                       checked={selectedVerticals.includes(vertical.id)}
                       onCheckedChange={() => toggleSelectVertical(vertical.id)}
