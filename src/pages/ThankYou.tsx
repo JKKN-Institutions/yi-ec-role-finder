@@ -47,7 +47,7 @@ const ThankYou = () => {
               </p>
               
               <p className="text-sm text-muted-foreground animate-fade-in">
-                We appreciate your time and interest in joining the Executive Committee.
+                We appreciate your time and interest in joining our team.
               </p>
             </div>
           </div>
