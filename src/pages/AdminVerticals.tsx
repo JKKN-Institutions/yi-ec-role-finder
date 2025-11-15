@@ -306,6 +306,39 @@ const AdminVerticals = () => {
     toast({ title: "Template downloaded", description: "Fill in the CSV with your verticals data" });
   };
 
+  // Helper function to parse CSV properly handling quoted fields
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+      
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    // Add last field
+    result.push(current.trim());
+    return result;
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -329,7 +362,7 @@ const AdminVerticals = () => {
       }
 
       // Parse header
-      const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim().toLowerCase());
+      const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
       
       // Validate headers
       const requiredHeaders = ["name", "description", "display_order", "is_active"];
@@ -346,7 +379,7 @@ const AdminVerticals = () => {
 
       // Parse data rows
       const preview = lines.slice(1).map((line, index) => {
-        const values = line.split(",").map((v) => v.replace(/"/g, "").trim());
+        const values = parseCSVLine(line);
         const row: any = {};
         
         headers.forEach((header, i) => {
