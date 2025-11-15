@@ -196,7 +196,7 @@ const AdminRoles = () => {
       if (error) throw error;
       if (!data?.success) throw new Error('Failed to create user');
 
-      toast({ title: "Admin user created successfully" });
+      toast({ title: "User created! A password reset email has been sent to set up their account." });
       loadData();
       setAddingUser(false);
     } catch (error: any) {

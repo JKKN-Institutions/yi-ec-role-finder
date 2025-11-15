@@ -58,9 +58,11 @@ Deno.serve(async (req) => {
         userId = existingUser.id
         console.log('Found existing user:', userId)
       } else {
-        // Create new user
+        // Create new user with a random password
+        const randomPassword = crypto.randomUUID()
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
           email,
+          password: randomPassword,
           email_confirm: true,
           user_metadata: { full_name: fullName },
         })
@@ -70,6 +72,16 @@ Deno.serve(async (req) => {
         
         userId = newUser.user.id
         console.log('Created new user:', userId)
+
+        // Send password reset email so user can set their own password
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+          email,
+          { redirectTo: `${Deno.env.get('SUPABASE_URL')}/auth/v1/verify` }
+        )
+        
+        if (resetError) {
+          console.error('Error sending password reset email:', resetError)
+        }
       }
 
       // Delete existing roles
