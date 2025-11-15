@@ -403,7 +403,7 @@ export function AdminOverview() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate(`/results/${submission.id}`)}
+                      onClick={() => navigate(`/admin/candidate/${submission.id}`)}
                     >
                       View
                     </Button>

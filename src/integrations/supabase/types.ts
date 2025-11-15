@@ -117,6 +117,8 @@ export type Database = {
           id: string
           is_shortlisted: boolean
           review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string
           updated_at: string
           user_email: string
@@ -130,6 +132,8 @@ export type Database = {
           id?: string
           is_shortlisted?: boolean
           review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           updated_at?: string
           user_email: string
@@ -143,6 +147,8 @@ export type Database = {
           id?: string
           is_shortlisted?: boolean
           review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           updated_at?: string
           user_email?: string
