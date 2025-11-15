@@ -6,29 +6,89 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 
-const questions = [
+type Vertical = {
+  id: string;
+  name: string;
+};
+
+type QuestionResponse = {
+  [key: string]: string;
+};
+
+const questionDefinitions = [
   {
     number: 1,
-    text: "Why do you want to join the Executive Committee? What drives your interest in this leadership position?",
+    title: "Which verticals interest you most?",
+    type: "vertical-select",
+    instructions: "Choose your top 3 preferences in priority order",
   },
   {
     number: 2,
-    text: "Describe a time when you led a project or initiative. What was your role, and what were the outcomes?",
+    title: "Saturday Emergency Response",
+    type: "long-text",
+    scenario:
+      "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event. Can you come to the office now for 3-4 hours?' What's your honest response?",
+    placeholder: "Describe exactly what you'd say and do...",
+    minChars: 50,
+    maxChars: 500,
   },
   {
     number: 3,
-    text: "What specific skills or expertise do you bring that would benefit the Executive Committee?",
+    title: "Your EC 2026 Commitment",
+    type: "short-text",
+    instruction: "Complete this sentence:",
+    prompt: "If I'm on EC 2026, by December 2026 I will have...",
+    placeholder: "Be specific with numbers and action verbs...",
+    minChars: 30,
+    maxChars: 300,
   },
   {
     number: 4,
-    text: "How do you handle conflict or disagreement within a team? Provide a specific example.",
+    title: "What might hold you back?",
+    type: "radio-with-text",
+    options: [
+      { value: "none", label: "None - I'm fully available and committed" },
+      { value: "time", label: "Time constraints (work/studies)" },
+      { value: "expectations", label: "Family/personal expectations" },
+      { value: "skills", label: "Lack of specific skills" },
+    ],
   },
   {
     number: 5,
-    text: "Where do you see yourself contributing most to Yi? Which areas align best with your passions and strengths?",
+    title: "Team Deadline Scenario",
+    type: "radio",
+    scenario:
+      "Your team misses a critical deadline. What's your first instinct?",
+    options: [
+      {
+        value: "leader",
+        label: "Lead: Rally the team, create recovery plan, own the outcome",
+      },
+      {
+        value: "doer",
+        label: "Do: Jump in personally, complete the work myself",
+      },
+      {
+        value: "learning",
+        label: "Learn: Analyze what went wrong, document for future",
+      },
+      {
+        value: "strategic",
+        label: "Strategize: Assess impact, prioritize next steps",
+      },
+    ],
   },
 ];
 
@@ -36,9 +96,13 @@ const Assessment = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [responses, setResponses] = useState<Record<number, string>>({});
-  const [currentResponse, setCurrentResponse] = useState("");
+  const [responses, setResponses] = useState<Record<number, QuestionResponse>>(
+    {}
+  );
+  const [currentResponse, setCurrentResponse] = useState<QuestionResponse>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verticals, setVerticals] = useState<Vertical[]>([]);
+  const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -69,31 +133,83 @@ const Assessment = () => {
         .eq("assessment_id", id);
 
       if (savedResponses) {
-        const responseMap: Record<number, string> = {};
+        const responseMap: Record<number, QuestionResponse> = {};
         savedResponses.forEach((r) => {
-          const data = r.response_data as { text?: string };
-          responseMap[r.question_number] = data.text || "";
+          responseMap[r.question_number] = r.response_data as QuestionResponse;
         });
         setResponses(responseMap);
-        setCurrentResponse(responseMap[assessment.current_question] || "");
+        setCurrentResponse(
+          responseMap[assessment.current_question] || {}
+        );
       }
     };
 
+    const loadVerticals = async () => {
+      const { data } = await supabase
+        .from("verticals")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("display_order");
+      if (data) setVerticals(data);
+    };
+
     loadAssessment();
+    loadVerticals();
   }, [id, navigate]);
 
+  const validateCurrentQuestion = (): boolean => {
+    setValidationError("");
+    const question = questionDefinitions[currentQuestion - 1];
+
+    if (question.type === "vertical-select") {
+      if (!currentResponse.priority1) {
+        setValidationError("Please select at least your first priority");
+        return false;
+      }
+    } else if (question.type === "long-text") {
+      const text = currentResponse.response || "";
+      if (text.length < (question.minChars || 0)) {
+        setValidationError(
+          `Please write at least ${question.minChars} characters`
+        );
+        return false;
+      }
+    } else if (question.type === "short-text") {
+      const text = currentResponse.statement || "";
+      if (text.length < (question.minChars || 0)) {
+        setValidationError(
+          `Please write at least ${question.minChars} characters`
+        );
+        return false;
+      }
+    } else if (question.type === "radio-with-text" || question.type === "radio") {
+      const value =
+        currentResponse.constraint ||
+        currentResponse.leadership_style ||
+        "";
+      if (!value) {
+        setValidationError("Please select an option");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const saveResponse = async () => {
-    if (!currentResponse.trim() || !id) return;
+    if (!id) return;
 
     try {
-      const question = questions.find((q) => q.number === currentQuestion);
+      const question = questionDefinitions.find(
+        (q) => q.number === currentQuestion
+      );
       if (!question) return;
 
       await supabase.from("assessment_responses").upsert({
         assessment_id: id,
         question_number: currentQuestion,
-        question_text: question.text,
-        response_data: { text: currentResponse },
+        question_text: question.title,
+        response_data: currentResponse,
       });
 
       setResponses({ ...responses, [currentQuestion]: currentResponse });
@@ -103,17 +219,15 @@ const Assessment = () => {
   };
 
   const handleNext = async () => {
-    if (!currentResponse.trim()) {
-      toast.error("Please provide a response before continuing");
-      return;
-    }
+    if (!validateCurrentQuestion()) return;
 
     await saveResponse();
 
     if (currentQuestion < 5) {
       const nextQuestion = currentQuestion + 1;
       setCurrentQuestion(nextQuestion);
-      setCurrentResponse(responses[nextQuestion] || "");
+      setCurrentResponse(responses[nextQuestion] || {});
+      setValidationError("");
 
       await supabase
         .from("assessments")
@@ -126,7 +240,8 @@ const Assessment = () => {
     await saveResponse();
     const prevQuestion = currentQuestion - 1;
     setCurrentQuestion(prevQuestion);
-    setCurrentResponse(responses[prevQuestion] || "");
+    setCurrentResponse(responses[prevQuestion] || {});
+    setValidationError("");
 
     await supabase
       .from("assessments")
@@ -135,10 +250,7 @@ const Assessment = () => {
   };
 
   const handleSubmit = async () => {
-    if (!currentResponse.trim()) {
-      toast.error("Please provide a response before submitting");
-      return;
-    }
+    if (!validateCurrentQuestion()) return;
 
     setIsSubmitting(true);
     try {
@@ -146,9 +258,9 @@ const Assessment = () => {
 
       await supabase
         .from("assessments")
-        .update({ 
-          status: "completed", 
-          completed_at: new Date().toISOString() 
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
         })
         .eq("id", id);
 
@@ -166,32 +278,309 @@ const Assessment = () => {
     }
   };
 
+  const renderQuestion = () => {
+    const question = questionDefinitions[currentQuestion - 1];
+
+    switch (question.type) {
+      case "vertical-select":
+        return (
+          <div className="space-y-6">
+            <p className="text-sm text-muted-foreground">
+              {question.instructions}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="priority1" className="text-base font-medium">
+                  Priority 1 (Required)
+                </Label>
+                <Select
+                  value={currentResponse.priority1 || ""}
+                  onValueChange={(value) =>
+                    setCurrentResponse({ ...currentResponse, priority1: value })
+                  }
+                >
+                  <SelectTrigger id="priority1" className="mt-2">
+                    <SelectValue placeholder="Select your top choice" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {verticals.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="priority2" className="text-base font-medium">
+                  Priority 2 (Optional)
+                </Label>
+                <Select
+                  value={currentResponse.priority2 || ""}
+                  onValueChange={(value) =>
+                    setCurrentResponse({ ...currentResponse, priority2: value })
+                  }
+                >
+                  <SelectTrigger id="priority2" className="mt-2">
+                    <SelectValue placeholder="Select your second choice" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {verticals
+                      .filter((v) => v.id !== currentResponse.priority1)
+                      .map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="priority3" className="text-base font-medium">
+                  Priority 3 (Optional)
+                </Label>
+                <Select
+                  value={currentResponse.priority3 || ""}
+                  onValueChange={(value) =>
+                    setCurrentResponse({ ...currentResponse, priority3: value })
+                  }
+                >
+                  <SelectTrigger id="priority3" className="mt-2">
+                    <SelectValue placeholder="Select your third choice" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {verticals
+                      .filter(
+                        (v) =>
+                          v.id !== currentResponse.priority1 &&
+                          v.id !== currentResponse.priority2
+                      )
+                      .map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "long-text":
+        const longTextValue = currentResponse.response || "";
+        return (
+          <div className="space-y-4">
+            {question.scenario && (
+              <p className="text-base bg-muted p-4 rounded-md">
+                {question.scenario}
+              </p>
+            )}
+            <div>
+              <Textarea
+                placeholder={question.placeholder}
+                value={longTextValue}
+                onChange={(e) =>
+                  setCurrentResponse({
+                    ...currentResponse,
+                    response: e.target.value,
+                  })
+                }
+                className="min-h-[200px] text-base"
+                maxLength={question.maxChars}
+              />
+              <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+                <span>
+                  Minimum: {question.minChars} characters
+                </span>
+                <span>
+                  {longTextValue.length} / {question.maxChars}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "short-text":
+        const shortTextValue = currentResponse.statement || "";
+        return (
+          <div className="space-y-4">
+            {question.instruction && (
+              <p className="text-base font-medium">{question.instruction}</p>
+            )}
+            {question.prompt && (
+              <p className="text-base italic text-muted-foreground">
+                "{question.prompt}"
+              </p>
+            )}
+            <div>
+              <Textarea
+                placeholder={question.placeholder}
+                value={shortTextValue}
+                onChange={(e) =>
+                  setCurrentResponse({
+                    ...currentResponse,
+                    statement: e.target.value,
+                  })
+                }
+                className="min-h-[150px] text-base"
+                maxLength={question.maxChars}
+              />
+              <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+                <span>
+                  Minimum: {question.minChars} characters
+                </span>
+                <span>
+                  {shortTextValue.length} / {question.maxChars}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "radio-with-text":
+        const needsHandling =
+          currentResponse.constraint &&
+          currentResponse.constraint !== "none";
+        return (
+          <div className="space-y-6">
+            <RadioGroup
+              value={currentResponse.constraint || ""}
+              onValueChange={(value) =>
+                setCurrentResponse({ ...currentResponse, constraint: value })
+              }
+            >
+              <div className="space-y-3">
+                {question.options?.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-3">
+                    <RadioGroupItem value={option.value} id={option.value} />
+                    <Label
+                      htmlFor={option.value}
+                      className="text-base font-normal cursor-pointer"
+                    >
+                      {option.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </RadioGroup>
+
+            {needsHandling && (
+              <div className="pl-7 space-y-2">
+                <Label htmlFor="handling" className="text-base">
+                  How would you handle this constraint?
+                </Label>
+                <Textarea
+                  id="handling"
+                  placeholder="What's your plan to overcome this?"
+                  value={currentResponse.handling || ""}
+                  onChange={(e) =>
+                    setCurrentResponse({
+                      ...currentResponse,
+                      handling: e.target.value,
+                    })
+                  }
+                  className="min-h-[100px]"
+                  maxLength={200}
+                />
+                <div className="text-sm text-muted-foreground text-right">
+                  {(currentResponse.handling || "").length} / 200
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "radio":
+        return (
+          <div className="space-y-6">
+            {question.scenario && (
+              <p className="text-base bg-muted p-4 rounded-md">
+                {question.scenario}
+              </p>
+            )}
+            <RadioGroup
+              value={currentResponse.leadership_style || ""}
+              onValueChange={(value) =>
+                setCurrentResponse({
+                  ...currentResponse,
+                  leadership_style: value,
+                })
+              }
+            >
+              <div className="space-y-3">
+                {question.options?.map((option) => (
+                  <div key={option.value} className="flex items-start space-x-3">
+                    <RadioGroupItem
+                      value={option.value}
+                      id={option.value}
+                      className="mt-1"
+                    />
+                    <Label
+                      htmlFor={option.value}
+                      className="text-base font-normal cursor-pointer leading-relaxed"
+                    >
+                      {option.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </RadioGroup>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   const progress = (currentQuestion / 5) * 100;
-  const currentQ = questions[currentQuestion - 1];
+  const currentQ = questionDefinitions[currentQuestion - 1];
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-8 max-w-3xl">
+        {/* Progress Section */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-muted-foreground">
               Question {currentQuestion} of 5
             </span>
-            <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
+            <span className="text-sm text-muted-foreground">
+              {Math.round(progress)}%
+            </span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-2 mb-4" />
+          
+          {/* Progress Dots */}
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((num) => (
+              <div
+                key={num}
+                className={`w-3 h-3 rounded-full transition-colors ${
+                  num < currentQuestion
+                    ? "bg-primary"
+                    : num === currentQuestion
+                    ? "bg-primary ring-4 ring-primary/20"
+                    : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         <Card className="p-8 shadow-lg">
-          <h2 className="text-2xl font-semibold mb-6">{currentQ?.text}</h2>
-          <Textarea
-            placeholder="Share your thoughts here..."
-            value={currentResponse}
-            onChange={(e) => setCurrentResponse(e.target.value)}
-            className="min-h-[200px] text-base"
-          />
+          <h2 className="text-2xl font-semibold mb-6">{currentQ?.title}</h2>
           
+          {renderQuestion()}
+
+          {validationError && (
+            <p className="text-sm text-destructive mt-4">{validationError}</p>
+          )}
+
           <div className="flex justify-between mt-8">
             <Button
               variant="outline"
