@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ type Vertical = {
 
 const Results = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState<AssessmentResult | null>(null);
   const [userName, setUserName] = useState("");
@@ -52,8 +53,31 @@ const Results = () => {
   const [animatedSkill, setAnimatedSkill] = useState(0);
 
   useEffect(() => {
+    const checkAdminAccess = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        navigate("/access-denied");
+        return false;
+      }
+
+      const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+        _user_id: user.id
+      });
+
+      if (!isAdmin) {
+        navigate("/access-denied");
+        return false;
+      }
+
+      return true;
+    };
+
     const loadResults = async () => {
       if (!id) return;
+
+      const hasAccess = await checkAdminAccess();
+      if (!hasAccess) return;
 
       const { data: assessment } = await supabase
         .from("assessments")
