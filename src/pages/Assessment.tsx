@@ -783,6 +783,7 @@ const Assessment = () => {
           <div className="mobile-footer mt-6 md:mt-8 flex flex-col sm:flex-row justify-between gap-3">
             <Button
               variant="outline"
+              size="sm"
               onClick={handlePrevious}
               disabled={currentQuestion === 1}
               className="btn-mobile w-full sm:w-auto"
@@ -794,7 +795,8 @@ const Assessment = () => {
 
             {currentQuestion < 5 ? (
               <Button 
-                onClick={handleNext} 
+                onClick={handleNext}
+                size="sm"
                 className="btn-mobile w-full sm:w-auto"
                 aria-label="Go to next question"
               >
@@ -803,7 +805,8 @@ const Assessment = () => {
               </Button>
             ) : (
               <Button 
-                onClick={handleSubmit} 
+                onClick={handleSubmit}
+                size="sm"
                 disabled={isSubmitting} 
                 className="btn-mobile w-full sm:w-auto"
                 aria-label="Submit assessment"
