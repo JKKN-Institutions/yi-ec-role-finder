@@ -35,7 +35,7 @@ const Admin = () => {
       });
 
       if (!isAdmin) {
-        navigate("/login");
+        navigate("/access-denied");
         return;
       }
 

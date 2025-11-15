@@ -3,24 +3,27 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Assessment from "./pages/Assessment";
 import Results from "./pages/Results";
 import ThankYou from "./pages/ThankYou";
 import Login from "./pages/Login";
+import NotFound from "./pages/NotFound";
+import AccessDenied from "./pages/AccessDenied";
 import Admin from "./pages/Admin";
 import CandidateProfile from "./pages/CandidateProfile";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/assessment/:id" element={<Assessment />} />
           <Route path="/thank-you" element={<ThankYou />} />
@@ -34,12 +37,13 @@ const App = () => (
           <Route path="/admin/verticals" element={<Admin />} />
           <Route path="/admin/roles" element={<Admin />} />
           <Route path="/admin/candidate/:assessmentId" element={<CandidateProfile />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/access-denied" element={<AccessDenied />} />
           <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

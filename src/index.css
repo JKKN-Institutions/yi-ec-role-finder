@@ -103,8 +103,79 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
+  
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Improved tap targets for mobile */
+  button, a, input, textarea, select {
+    @apply touch-manipulation;
+  }
+  
+  /* Smooth scrolling */
+  html {
+    @apply scroll-smooth;
+  }
+}
+
+@layer components {
+  /* Mobile-optimized button sizes */
+  .btn-mobile {
+    @apply min-h-[44px] min-w-[44px] text-base;
+  }
+  
+  /* Loading shimmer effect */
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+  
+  .shimmer::after {
+    content: '';
+    @apply absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  /* Skeleton loader */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  /* Mobile-friendly table scroll */
+  .table-scroll {
+    @apply overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0;
+  }
+  
+  /* Sticky mobile footer */
+  .mobile-footer {
+    @apply fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-lg md:relative md:shadow-none md:border-0 md:p-0 z-10;
+  }
+  
+  /* Focus visible for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
