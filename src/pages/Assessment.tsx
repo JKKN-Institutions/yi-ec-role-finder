@@ -264,13 +264,13 @@ const Assessment = () => {
         })
         .eq("id", id);
 
-      const { error } = await supabase.functions.invoke("analyze-assessment", {
+      // Trigger analysis in background (don't wait)
+      supabase.functions.invoke("analyze-assessment", {
         body: { assessmentId: id },
       });
 
-      if (error) throw error;
-
-      navigate(`/results/${id}`);
+      // Navigate to thank you page immediately
+      navigate(`/thank-you?id=${id}`);
     } catch (error) {
       toast.error("Failed to submit assessment");
     } finally {

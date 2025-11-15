@@ -1,66 +1,70 @@
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Target, TrendingUp, Lightbulb } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { toast } from "sonner";
+import {
+  Share2,
+  TrendingUp,
+  Target,
+  Lightbulb,
+  Star,
+  CheckCircle2,
+} from "lucide-react";
+import confetti from "canvas-confetti";
 
-interface AssessmentResult {
+type AssessmentResult = {
   will_score: number;
   skill_score: number;
   quadrant: string;
   recommended_role: string;
   role_explanation: string;
   vertical_matches: string[];
-  leadership_style: string;
-  recommendations: Array<{ title: string; description: string }>;
-  key_insights: Array<{ category: string; insight: string }>;
-}
+  leadership_style: string | null;
+  recommendations: any;
+  key_insights: any;
+  reasoning: string | null;
+  scoring_breakdown: any;
+};
+
+type Vertical = {
+  id: string;
+  name: string;
+  description: string | null;
+};
 
 const Results = () => {
   const { id } = useParams();
-  const [result, setResult] = useState<AssessmentResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [assessment, setAssessment] = useState<any>(null);
+  const [results, setResults] = useState<AssessmentResult | null>(null);
+  const [userName, setUserName] = useState("");
+  const [verticals, setVerticals] = useState<Vertical[]>([]);
+  const [animatedWill, setAnimatedWill] = useState(0);
+  const [animatedSkill, setAnimatedSkill] = useState(0);
 
   useEffect(() => {
     const loadResults = async () => {
       if (!id) return;
 
-      const { data: assessmentData } = await supabase
+      const { data: assessment } = await supabase
         .from("assessments")
-        .select("*")
+        .select("user_name")
         .eq("id", id)
         .single();
 
-      setAssessment(assessmentData);
-
-      if (assessmentData?.status !== "completed") {
-        setLoading(true);
-        const checkInterval = setInterval(async () => {
-          const { data: updatedAssessment } = await supabase
-            .from("assessments")
-            .select("*")
-            .eq("id", id)
-            .single();
-
-          if (updatedAssessment?.status === "completed") {
-            clearInterval(checkInterval);
-            loadResultData();
-          }
-        }, 2000);
-
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          loadResultData();
-        }, 30000);
-      } else {
-        loadResultData();
+      if (assessment) {
+        setUserName(assessment.user_name);
       }
-    };
 
-    const loadResultData = async () => {
       const { data: resultData } = await supabase
         .from("assessment_results")
         .select("*")
@@ -68,136 +72,366 @@ const Results = () => {
         .single();
 
       if (resultData) {
-        setResult({
-          will_score: resultData.will_score,
-          skill_score: resultData.skill_score,
-          quadrant: resultData.quadrant,
-          recommended_role: resultData.recommended_role,
-          role_explanation: resultData.role_explanation,
-          vertical_matches: resultData.vertical_matches as string[],
-          leadership_style: resultData.leadership_style || "",
-          recommendations: (resultData.recommendations as any) || [],
-          key_insights: (resultData.key_insights as any) || [],
-        });
+        setResults(resultData as AssessmentResult);
+
+        // Load verticals data
+        if (resultData.vertical_matches && resultData.vertical_matches.length > 0) {
+          const { data: verticalsData } = await supabase
+            .from("verticals")
+            .select("*")
+            .in("id", resultData.vertical_matches);
+
+          if (verticalsData) {
+            setVerticals(verticalsData as Vertical[]);
+          }
+        }
+
+        // Animate scores
+        const willTarget = resultData.will_score;
+        const skillTarget = resultData.skill_score;
+        const duration = 1500;
+        const steps = 60;
+        const willStep = willTarget / steps;
+        const skillStep = skillTarget / steps;
+
+        let currentStep = 0;
+        const interval = setInterval(() => {
+          currentStep++;
+          setAnimatedWill(Math.min(Math.round(willStep * currentStep), willTarget));
+          setAnimatedSkill(Math.min(Math.round(skillStep * currentStep), skillTarget));
+
+          if (currentStep >= steps) {
+            clearInterval(interval);
+          }
+        }, duration / steps);
+
+        // Trigger confetti for Q1 - STAR
+        if (resultData.quadrant === "Q1") {
+          setTimeout(() => {
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 },
+              colors: ['#7C3AED', '#3B82F6', '#10B981'],
+            });
+          }, 1000);
+        }
       }
+
       setLoading(false);
     };
 
     loadResults();
   }, [id]);
 
+  const handleShare = () => {
+    const url = `${window.location.origin}/results/${id}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied! Share with your team");
+  };
+
+  const getQuadrantInfo = (quadrant: string) => {
+    const quadrants: Record<string, { label: string; description: string; color: string }> = {
+      Q1: {
+        label: "STAR",
+        description: "High WILL + High SKILL",
+        color: "bg-green-500",
+      },
+      Q2: {
+        label: "WILLING",
+        description: "High WILL + Low SKILL",
+        color: "bg-blue-500",
+      },
+      Q3: {
+        label: "NOT READY",
+        description: "Low WILL + Low SKILL",
+        color: "bg-gray-500",
+      },
+      Q4: {
+        label: "RELUCTANT",
+        description: "High SKILL + Low WILL",
+        color: "bg-yellow-500",
+      },
+    };
+    return quadrants[quadrant] || quadrants.Q3;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <h2 className="text-2xl font-semibold mb-2">Analyzing Your Responses</h2>
-          <p className="text-muted-foreground">Our AI is evaluating your assessment...</p>
+        <div className="container mx-auto px-4 py-16 text-center">
+          <p className="text-xl text-muted-foreground">Loading your results...</p>
         </div>
       </div>
     );
   }
 
-  if (!result) {
+  if (!results) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-4 py-20 text-center">
-          <h2 className="text-2xl font-semibold mb-2">Results Not Available</h2>
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className="text-3xl font-bold mb-4">Results Not Found</h1>
           <p className="text-muted-foreground">
-            Please wait while we process your assessment
+            Your assessment results are not ready yet or the link is invalid.
           </p>
         </div>
       </div>
     );
   }
+
+  const quadrantInfo = getQuadrantInfo(results.quadrant);
+  const recommendations = Array.isArray(results.recommendations)
+    ? results.recommendations
+    : [];
+  const keyInsights = results.key_insights || {};
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-3">Your EC Role Assessment</h1>
-          <p className="text-lg text-muted-foreground">
-            Results for {assessment?.user_name}
-          </p>
-        </div>
+      <div className="container mx-auto px-4 py-8 max-w-6xl space-y-8">
+        {/* Hero Section */}
+        <div className="text-center space-y-6 animate-fade-in">
+          <h1 className="text-4xl md:text-5xl font-bold">
+            {userName}'s Leadership Profile
+          </h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg">WILL Score</h3>
-              <Target className="h-5 w-5 text-primary" />
-            </div>
-            <div className="text-4xl font-bold text-primary mb-2">{result.will_score}%</div>
-            <p className="text-sm text-muted-foreground">Motivation & Drive</p>
-          </Card>
+          {/* Animated Scores */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            <Card className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-medium">WILL Score</span>
+                <span className="text-4xl font-bold text-primary">
+                  {animatedWill}
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-1000"
+                  style={{ width: `${animatedWill}%` }}
+                />
+              </div>
+            </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg">SKILL Score</h3>
-              <TrendingUp className="h-5 w-5 text-accent" />
-            </div>
-            <div className="text-4xl font-bold text-accent mb-2">{result.skill_score}%</div>
-            <p className="text-sm text-muted-foreground">Capability & Experience</p>
-          </Card>
-        </div>
-
-        <Card className="p-8 mb-8 bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
-          <div className="flex items-start space-x-3 mb-4">
-            <Badge variant="default" className="mt-1">Recommended</Badge>
+            <Card className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-medium">SKILL Score</span>
+                <span className="text-4xl font-bold text-blue-600">
+                  {animatedSkill}
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-1000"
+                  style={{ width: `${animatedSkill}%` }}
+                />
+              </div>
+            </Card>
           </div>
-          <h2 className="text-3xl font-bold mb-4">{result.recommended_role}</h2>
-          <p className="text-lg text-muted-foreground mb-6">{result.role_explanation}</p>
-          
-          <div className="space-y-3">
-            <h3 className="font-semibold">Best Fit Verticals:</h3>
-            <div className="flex flex-wrap gap-2">
-              {result.vertical_matches.map((vertical) => (
-                <Badge key={vertical} variant="outline" className="text-sm">
-                  {vertical}
-                </Badge>
-              ))}
+
+          {/* Quadrant Badge */}
+          <div className="flex justify-center gap-3 items-center">
+            <Badge
+              className={`${quadrantInfo.color} text-white text-lg px-6 py-2 animate-scale-in`}
+            >
+              {results.quadrant} - {quadrantInfo.label}
+            </Badge>
+            {results.quadrant === "Q1" && (
+              <Star className="w-8 h-8 text-yellow-500 animate-pulse" />
+            )}
+          </div>
+          <p className="text-muted-foreground">{quadrantInfo.description}</p>
+        </div>
+
+        {/* Quadrant Chart */}
+        <Card className="p-8 animate-fade-in" style={{ animationDelay: "200ms" }}>
+          <h2 className="text-2xl font-semibold mb-6">WILL/SKILL Matrix Position</h2>
+          <div className="relative w-full aspect-square max-w-xl mx-auto">
+            {/* Grid Background */}
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-1">
+              <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-xs font-medium text-muted-foreground">
+                Q2: WILLING
+              </div>
+              <div className="bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 flex items-center justify-center text-xs font-medium">
+                Q1: STAR
+              </div>
+              <div className="bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-900 dark:to-gray-950 flex items-center justify-center text-xs font-medium text-muted-foreground">
+                Q3: NOT READY
+              </div>
+              <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900 dark:to-yellow-800 flex items-center justify-center text-xs font-medium">
+                Q4: RELUCTANT
+              </div>
+            </div>
+
+            {/* Axes */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border" />
+              <div className="absolute top-1/2 left-0 right-0 h-px bg-border" />
+            </div>
+
+            {/* Labels */}
+            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-sm font-medium">
+              WILL →
+            </div>
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-8 text-sm font-medium">
+              SKILL →
+            </div>
+
+            {/* User Position Dot */}
+            <div
+              className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 animate-pulse"
+              style={{
+                left: `${results.skill_score}%`,
+                bottom: `${results.will_score}%`,
+              }}
+            >
+              <div className="w-full h-full rounded-full bg-primary ring-4 ring-primary/20" />
             </div>
           </div>
         </Card>
 
-        {result.leadership_style && (
-          <Card className="p-6 mb-8">
-            <h3 className="font-semibold text-lg mb-3">Your Leadership Style</h3>
-            <p className="text-muted-foreground">{result.leadership_style}</p>
+        {/* Role Recommendations */}
+        <Card className="p-8 space-y-6 animate-fade-in" style={{ animationDelay: "300ms" }}>
+          <div className="flex items-center gap-3">
+            <Target className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-semibold">Recommended Role</h2>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-3xl font-bold text-primary">
+                {results.recommended_role}
+              </h3>
+              <Badge variant="secondary">Best Match</Badge>
+            </div>
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              {results.role_explanation}
+            </p>
+          </div>
+        </Card>
+
+        {/* Vertical Matches */}
+        {verticals.length > 0 && (
+          <Card className="p-8 space-y-6 animate-fade-in" style={{ animationDelay: "400ms" }}>
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-6 h-6 text-primary" />
+              <h2 className="text-2xl font-semibold">Your Vertical Matches</h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {verticals.map((vertical, index) => (
+                <Card
+                  key={vertical.id}
+                  className="p-6 hover-scale hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-lg">{vertical.name}</h4>
+                      {vertical.description && (
+                        <p className="text-sm text-muted-foreground">
+                          {vertical.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </Card>
         )}
 
-        <Card className="p-6 mb-8">
-          <div className="flex items-center space-x-2 mb-4">
-            <Lightbulb className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-lg">Key Recommendations</h3>
-          </div>
-          <div className="space-y-4">
-            {result.recommendations.map((rec, index) => (
-              <div key={index} className="border-l-2 border-primary pl-4">
-                <h4 className="font-medium mb-1">{rec.title}</h4>
-                <p className="text-sm text-muted-foreground">{rec.description}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
+        {/* Key Insights */}
+        {Object.keys(keyInsights).length > 0 && (
+          <Card className="p-8 space-y-6 animate-fade-in" style={{ animationDelay: "500ms" }}>
+            <div className="flex items-center gap-3">
+              <Lightbulb className="w-6 h-6 text-primary" />
+              <h2 className="text-2xl font-semibold">Key Insights</h2>
+            </div>
+            <div className="space-y-4">
+              {Object.entries(keyInsights).map(([key, value]) => (
+                <div key={key} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium capitalize mb-1">
+                      {key.replace(/_/g, " ")}
+                    </h4>
+                    <p className="text-muted-foreground">{String(value)}</p>
+                  </div>
+                </div>
+              ))}
+              {results.leadership_style && (
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium mb-1">Leadership Style</h4>
+                    <p className="text-muted-foreground">{results.leadership_style}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
-        {result.key_insights && result.key_insights.length > 0 && (
-          <Card className="p-6">
-            <h3 className="font-semibold text-lg mb-4">Key Insights</h3>
-            <div className="space-y-3">
-              {result.key_insights.map((insight, index) => (
-                <div key={index}>
-                  <Badge variant="secondary" className="mb-2">{insight.category}</Badge>
-                  <p className="text-sm text-muted-foreground">{insight.insight}</p>
+        {/* Growth Path */}
+        {recommendations.length > 0 && (
+          <Card className="p-8 space-y-6 animate-fade-in" style={{ animationDelay: "600ms" }}>
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-6 h-6 text-primary" />
+              <h2 className="text-2xl font-semibold">Your Growth Path</h2>
+            </div>
+            <div className="space-y-4">
+              {recommendations.slice(0, 5).map((rec: string, index: number) => (
+                <div key={index} className="flex gap-4">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold flex-shrink-0">
+                    {index + 1}
+                  </div>
+                  <p className="text-base leading-relaxed pt-1">{rec}</p>
                 </div>
               ))}
             </div>
           </Card>
         )}
+
+        {/* AI Reasoning (Collapsible) */}
+        {results.reasoning && (
+          <Accordion type="single" collapsible className="animate-fade-in" style={{ animationDelay: "700ms" }}>
+            <AccordionItem value="reasoning">
+              <AccordionTrigger className="text-xl font-semibold">
+                See AI's Full Analysis
+              </AccordionTrigger>
+              <AccordionContent>
+                <Card className="p-6 bg-muted">
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <p className="whitespace-pre-wrap">{results.reasoning}</p>
+                  </div>
+                  {results.scoring_breakdown && (
+                    <div className="mt-6 pt-6 border-t">
+                      <h4 className="font-semibold mb-3">Scoring Breakdown</h4>
+                      <pre className="text-xs bg-background p-4 rounded overflow-auto">
+                        {JSON.stringify(results.scoring_breakdown, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </Card>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
+
+        {/* Share Button */}
+        <div className="flex justify-center pt-8">
+          <Button
+            onClick={handleShare}
+            size="lg"
+            variant="outline"
+            className="gap-2"
+          >
+            <Share2 className="w-4 h-4" />
+            Share Results
+          </Button>
+        </div>
       </div>
     </div>
   );
