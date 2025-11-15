@@ -58,6 +58,7 @@ const AdminVerticals = () => {
   const [addingVertical, setAddingVertical] = useState(false);
   const [editingVertical, setEditingVertical] = useState<Vertical | null>(null);
   const [deletingVertical, setDeletingVertical] = useState<Vertical | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [draggedItem, setDraggedItem] = useState<Vertical | null>(null);
   const [importingVerticals, setImportingVerticals] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -174,6 +175,23 @@ const AdminVerticals = () => {
       toast({ title: "Vertical deactivated successfully" });
       loadData();
       setDeletingVertical(null);
+    }
+  };
+
+  const deleteAllVerticals = async () => {
+    try {
+      const { error } = await supabase
+        .from("verticals")
+        .update({ is_active: false })
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      toast({ title: "Success", description: "All verticals deactivated successfully" });
+      setDeletingAll(false);
+      loadData();
+    } catch (error: any) {
+      toast({ title: "Error deactivating verticals", description: error.message, variant: "destructive" });
     }
   };
 
@@ -454,6 +472,14 @@ const AdminVerticals = () => {
               </form>
             </DialogContent>
           </Dialog>
+          <Button 
+            variant="destructive" 
+            onClick={() => setDeletingAll(true)}
+            disabled={verticals.filter(v => v.is_active).length === 0}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete All
+          </Button>
           <Button variant="outline" onClick={downloadTemplate}>
             <Download className="h-4 w-4 mr-2" />
             Download Template
@@ -749,6 +775,30 @@ const AdminVerticals = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={deleteVertical}>Deactivate Vertical</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Confirmation */}
+      <AlertDialog open={deletingAll} onOpenChange={setDeletingAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Verticals?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate all {verticals.filter(v => v.is_active).length} active verticals. 
+              <br />
+              <br />
+              This will not affect past assessments, but these verticals won't appear in new ones.
+              <br />
+              <br />
+              You can reactivate them later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteAllVerticals} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete All
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
