@@ -185,16 +185,17 @@ const AdminVerticals = () => {
     try {
       const { error } = await supabase
         .from("verticals")
-        .update({ is_active: false })
-        .eq("is_active", true);
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all records
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "All verticals deactivated successfully" });
+      toast({ title: "Success", description: "All verticals permanently deleted" });
       setDeletingAll(false);
+      setSelectedVerticals([]);
       loadData();
     } catch (error: any) {
-      toast({ title: "Error deactivating verticals", description: error.message, variant: "destructive" });
+      toast({ title: "Error deleting verticals", description: error.message, variant: "destructive" });
     }
   };
 
@@ -511,7 +512,7 @@ const AdminVerticals = () => {
           <Button 
             variant="destructive" 
             onClick={() => setDeletingAll(true)}
-            disabled={verticals.filter(v => v.is_active).length === 0}
+            disabled={verticals.length === 0}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete All
@@ -854,21 +855,21 @@ const AdminVerticals = () => {
       <AlertDialog open={deletingAll} onOpenChange={setDeletingAll}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete All Verticals?</AlertDialogTitle>
+            <AlertDialogTitle>Permanently Delete All Verticals?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will deactivate all {verticals.filter(v => v.is_active).length} active verticals. 
+              This will <strong>permanently delete all {verticals.length} verticals</strong> from the database.
               <br />
               <br />
-              This will not affect past assessments, but these verticals won't appear in new ones.
+              ⚠️ <strong>This action cannot be undone.</strong>
               <br />
               <br />
-              You can reactivate them later if needed.
+              Past assessments will not be affected, but all vertical data will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={deleteAllVerticals} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete All
+              Permanently Delete All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
