@@ -11,6 +11,7 @@ import AdminValidation from "./AdminValidation";
 import AdminTracking from "./AdminTracking";
 import AdminVerticals from "./AdminVerticals";
 import AdminRoles from "./AdminRoles";
+import AdminCandidates from "./AdminCandidates";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
@@ -59,6 +60,7 @@ const Admin = () => {
   }
 
   const getPageComponent = () => {
+    if (location.pathname === "/admin/candidates") return <AdminCandidates />;
     if (location.pathname === "/admin/comparison") return <AdminComparison />;
     if (location.pathname === "/admin/analytics") return <AdminAnalytics />;
     if (location.pathname === "/admin/validation") return <AdminValidation />;
@@ -69,6 +71,7 @@ const Admin = () => {
   };
 
   const getBreadcrumb = () => {
+    if (location.pathname === "/admin/candidates") return "Candidates";
     if (location.pathname === "/admin/comparison") return "Comparison";
     if (location.pathname === "/admin/analytics") return "Analytics";
     if (location.pathname === "/admin/validation") return "Validation";
