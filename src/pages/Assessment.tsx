@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 
 type Vertical = {
   id: string;
@@ -572,33 +572,57 @@ const Assessment = () => {
           </div>
         </div>
 
-        <Card className="p-8 shadow-lg">
-          <h2 className="text-2xl font-semibold mb-6">{currentQ?.title}</h2>
+        <Card className="p-4 md:p-8 shadow-lg">
+          <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6" role="heading" aria-level={2}>
+            {currentQ?.title}
+          </h2>
           
-          {renderQuestion()}
+          <div className="min-h-[200px]" role="main" aria-label={`Question ${currentQuestion} of 5`}>
+            {renderQuestion()}
+          </div>
 
           {validationError && (
-            <p className="text-sm text-destructive mt-4">{validationError}</p>
+            <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive" role="alert" aria-live="polite">
+              <p className="text-sm text-destructive">{validationError}</p>
+            </div>
           )}
 
-          <div className="flex justify-between mt-8">
+          <div className="mobile-footer mt-6 md:mt-8 flex flex-col sm:flex-row justify-between gap-3">
             <Button
               variant="outline"
               onClick={handlePrevious}
               disabled={currentQuestion === 1}
+              className="btn-mobile w-full sm:w-auto"
+              aria-label="Go to previous question"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
               Previous
             </Button>
 
             {currentQuestion < 5 ? (
-              <Button onClick={handleNext}>
+              <Button 
+                onClick={handleNext} 
+                className="btn-mobile w-full sm:w-auto"
+                aria-label="Go to next question"
+              >
                 Next
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "Submit Assessment"}
+              <Button 
+                onClick={handleSubmit} 
+                disabled={isSubmitting} 
+                className="btn-mobile w-full sm:w-auto"
+                aria-label="Submit assessment"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Assessment"
+                )}
               </Button>
             )}
           </div>
