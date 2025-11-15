@@ -85,7 +85,13 @@ const AdminValidation = () => {
       const [metricsRes, assessmentsRes] = await Promise.all([
         supabase
           .from("validation_metrics")
-          .select("*, assessments(*), assessment_results(*)"),
+          .select(`
+            *,
+            assessments(
+              *,
+              assessment_results(*)
+            )
+          `),
         supabase.from("assessments").select("*, assessment_results(*)").eq("status", "completed"),
       ]);
 
@@ -95,7 +101,7 @@ const AdminValidation = () => {
       const metricsData = (metricsRes.data || []).map((m: any) => ({
         ...m,
         assessment: m.assessments,
-        result: Array.isArray(m.assessment_results) ? m.assessment_results[0] : m.assessment_results,
+        result: m.assessments?.assessment_results?.[0] || null,
       }));
 
       setMetrics(metricsData);
