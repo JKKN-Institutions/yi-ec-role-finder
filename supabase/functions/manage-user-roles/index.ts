@@ -149,6 +149,40 @@ Deno.serve(async (req) => {
       )
     }
 
+    if (action === 'reset_password') {
+      // Find user by email
+      const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+      if (listError) throw listError
+
+      const existingUser = existingUsers.users.find(u => u.email === email)
+      if (!existingUser) {
+        throw new Error('User not found')
+      }
+
+      const userId = existingUser.id
+
+      // Update user password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { password }
+      )
+
+      if (updateError) throw updateError
+
+      // Log audit
+      await supabaseAdmin.from('user_role_audit').insert({
+        action: 'reset_password',
+        performed_by: user.id,
+        affected_user: userId,
+        role_name: null,
+      })
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     throw new Error('Invalid action')
 
   } catch (error) {
