@@ -156,6 +156,84 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_feedback: {
+        Row: {
+          actual_role_assigned: string
+          actual_vertical_assigned: string | null
+          ai_accuracy: string
+          ai_recommended_role: string
+          ai_recommended_vertical: string | null
+          assessment_id: string
+          created_at: string | null
+          hire_confidence: string
+          hire_date: string
+          id: string
+          is_still_active: boolean | null
+          override_reasoning: string | null
+          performance_notes: string | null
+          recorded_by: string | null
+          role_change: string | null
+          six_month_performance_rating: number | null
+          six_month_review_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_role_assigned: string
+          actual_vertical_assigned?: string | null
+          ai_accuracy: string
+          ai_recommended_role: string
+          ai_recommended_vertical?: string | null
+          assessment_id: string
+          created_at?: string | null
+          hire_confidence: string
+          hire_date: string
+          id?: string
+          is_still_active?: boolean | null
+          override_reasoning?: string | null
+          performance_notes?: string | null
+          recorded_by?: string | null
+          role_change?: string | null
+          six_month_performance_rating?: number | null
+          six_month_review_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_role_assigned?: string
+          actual_vertical_assigned?: string | null
+          ai_accuracy?: string
+          ai_recommended_role?: string
+          ai_recommended_vertical?: string | null
+          assessment_id?: string
+          created_at?: string | null
+          hire_confidence?: string
+          hire_date?: string
+          id?: string
+          is_still_active?: boolean | null
+          override_reasoning?: string | null
+          performance_notes?: string | null
+          recorded_by?: string | null
+          role_change?: string | null
+          six_month_performance_rating?: number | null
+          six_month_review_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_feedback_actual_vertical_assigned_fkey"
+            columns: ["actual_vertical_assigned"]
+            isOneToOne: false
+            referencedRelation: "verticals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_feedback_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

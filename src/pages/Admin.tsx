@@ -8,6 +8,7 @@ import { AdminOverview } from "@/components/admin/AdminOverview";
 import AdminComparison from "./AdminComparison";
 import AdminAnalytics from "./AdminAnalytics";
 import AdminValidation from "./AdminValidation";
+import AdminTracking from "./AdminTracking";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
@@ -59,6 +60,7 @@ const Admin = () => {
     if (location.pathname === "/admin/comparison") return <AdminComparison />;
     if (location.pathname === "/admin/analytics") return <AdminAnalytics />;
     if (location.pathname === "/admin/validation") return <AdminValidation />;
+    if (location.pathname === "/admin/tracking") return <AdminTracking />;
     return <AdminOverview />;
   };
 
@@ -66,6 +68,7 @@ const Admin = () => {
     if (location.pathname === "/admin/comparison") return "Comparison";
     if (location.pathname === "/admin/analytics") return "Analytics";
     if (location.pathname === "/admin/validation") return "Validation";
+    if (location.pathname === "/admin/tracking") return "Tracking";
     return "Overview";
   };
 
