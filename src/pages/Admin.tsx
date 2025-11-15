@@ -6,6 +6,8 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import AdminComparison from "./AdminComparison";
+import AdminAnalytics from "./AdminAnalytics";
+import AdminValidation from "./AdminValidation";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
@@ -53,17 +55,28 @@ const Admin = () => {
     return null;
   }
 
-  const isComparisonPage = location.pathname === "/admin/comparison";
-  const breadcrumb = isComparisonPage ? "Comparison" : "Overview";
+  const getPageComponent = () => {
+    if (location.pathname === "/admin/comparison") return <AdminComparison />;
+    if (location.pathname === "/admin/analytics") return <AdminAnalytics />;
+    if (location.pathname === "/admin/validation") return <AdminValidation />;
+    return <AdminOverview />;
+  };
+
+  const getBreadcrumb = () => {
+    if (location.pathname === "/admin/comparison") return "Comparison";
+    if (location.pathname === "/admin/analytics") return "Analytics";
+    if (location.pathname === "/admin/validation") return "Validation";
+    return "Overview";
+  };
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
         <div className="flex-1 flex flex-col">
-          <AdminHeader breadcrumb={breadcrumb} />
+          <AdminHeader breadcrumb={getBreadcrumb()} />
           <main className="flex-1 overflow-auto">
-            {isComparisonPage ? <AdminComparison /> : <AdminOverview />}
+            {getPageComponent()}
           </main>
         </div>
       </div>

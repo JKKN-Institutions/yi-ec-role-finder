@@ -177,6 +177,62 @@ export type Database = {
         }
         Relationships: []
       }
+      validation_metrics: {
+        Row: {
+          actual_role_assigned: string | null
+          admin_feedback: string | null
+          ai_recommended_role: string
+          assessment_id: string
+          created_at: string | null
+          hire_date: string | null
+          id: string
+          match_status: string | null
+          override_reasoning: string | null
+          performance_rating: number | null
+          retention_6_month: boolean | null
+          still_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_role_assigned?: string | null
+          admin_feedback?: string | null
+          ai_recommended_role: string
+          assessment_id: string
+          created_at?: string | null
+          hire_date?: string | null
+          id?: string
+          match_status?: string | null
+          override_reasoning?: string | null
+          performance_rating?: number | null
+          retention_6_month?: boolean | null
+          still_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_role_assigned?: string | null
+          admin_feedback?: string | null
+          ai_recommended_role?: string
+          assessment_id?: string
+          created_at?: string | null
+          hire_date?: string | null
+          id?: string
+          match_status?: string | null
+          override_reasoning?: string | null
+          performance_rating?: number | null
+          retention_6_month?: boolean | null
+          still_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_metrics_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       verticals: {
         Row: {
           created_at: string
