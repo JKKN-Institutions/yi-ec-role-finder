@@ -14,9 +14,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, Info, List } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Vertical = {
   id: string;
@@ -104,6 +119,7 @@ const Assessment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [validationError, setValidationError] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -287,9 +303,37 @@ const Assessment = () => {
       case "vertical-select":
         return (
           <div className="space-y-6">
-            <p className="text-sm text-muted-foreground">
-              {question.instructions}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {question.instructions}
+              </p>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <List className="w-4 h-4" />
+                    View All Verticals
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>All Available Verticals</DialogTitle>
+                    <DialogDescription>
+                      Review all verticals and their descriptions to make an informed choice
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6 mt-4">
+                    {verticals.map((vertical) => (
+                      <div key={vertical.id} className="space-y-2 pb-4 border-b border-border last:border-0">
+                        <h3 className="font-semibold text-lg">{vertical.name}</h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {vertical.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="priority1" className="text-base font-medium">
@@ -309,14 +353,45 @@ const Assessment = () => {
                   <SelectTrigger id="priority1" className="mt-2">
                     <SelectValue placeholder="Select your top choice" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    {verticals.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="bg-background z-50">
+                    <TooltipProvider>
+                      {verticals.map((v) => (
+                        <div key={v.id} className="relative group">
+                          <SelectItem value={v.id} className="pr-8">
+                            {v.name}
+                          </SelectItem>
+                          {v.description && (
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p className="text-sm">{v.description}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      ))}
+                    </TooltipProvider>
                   </SelectContent>
                 </Select>
+                <AnimatePresence>
+                  {currentResponse.priority1 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, y: -10 }}
+                      animate={{ opacity: 1, height: "auto", y: 0 }}
+                      exit={{ opacity: 0, height: 0, y: -10 }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {verticals.find((v) => v.id === currentResponse.priority1)?.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div>
@@ -337,23 +412,47 @@ const Assessment = () => {
                   <SelectTrigger id="priority2" className="mt-2">
                     <SelectValue placeholder="Select your second choice" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    {verticals
-                      .filter((v) => v.id !== currentResponse.priority1)
-                      .map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.name}
-                        </SelectItem>
-                      ))}
+                  <SelectContent className="bg-background z-50">
+                    <TooltipProvider>
+                      {verticals
+                        .filter((v) => v.id !== currentResponse.priority1)
+                        .map((v) => (
+                          <div key={v.id} className="relative group">
+                            <SelectItem value={v.id} className="pr-8">
+                              {v.name}
+                            </SelectItem>
+                            {v.description && (
+                              <Tooltip delayDuration={100}>
+                                <TooltipTrigger asChild>
+                                  <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-xs">
+                                  <p className="text-sm">{v.description}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        ))}
+                    </TooltipProvider>
                   </SelectContent>
                 </Select>
-                {currentResponse.priority2 && (
-                  <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {verticals.find((v) => v.id === currentResponse.priority2)?.description}
-                    </p>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {currentResponse.priority2 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, y: -10 }}
+                      animate={{ opacity: 1, height: "auto", y: 0 }}
+                      exit={{ opacity: 0, height: 0, y: -10 }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {verticals.find((v) => v.id === currentResponse.priority2)?.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div>
@@ -374,27 +473,51 @@ const Assessment = () => {
                   <SelectTrigger id="priority3" className="mt-2">
                     <SelectValue placeholder="Select your third choice" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    {verticals
-                      .filter(
-                        (v) =>
-                          v.id !== currentResponse.priority1 &&
-                          v.id !== currentResponse.priority2
-                      )
-                      .map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.name}
-                        </SelectItem>
-                      ))}
+                  <SelectContent className="bg-background z-50">
+                    <TooltipProvider>
+                      {verticals
+                        .filter(
+                          (v) =>
+                            v.id !== currentResponse.priority1 &&
+                            v.id !== currentResponse.priority2
+                        )
+                        .map((v) => (
+                          <div key={v.id} className="relative group">
+                            <SelectItem value={v.id} className="pr-8">
+                              {v.name}
+                            </SelectItem>
+                            {v.description && (
+                              <Tooltip delayDuration={100}>
+                                <TooltipTrigger asChild>
+                                  <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-xs">
+                                  <p className="text-sm">{v.description}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        ))}
+                    </TooltipProvider>
                   </SelectContent>
                 </Select>
-                {currentResponse.priority3 && (
-                  <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {verticals.find((v) => v.id === currentResponse.priority3)?.description}
-                    </p>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {currentResponse.priority3 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, y: -10 }}
+                      animate={{ opacity: 1, height: "auto", y: 0 }}
+                      exit={{ opacity: 0, height: 0, y: -10 }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {verticals.find((v) => v.id === currentResponse.priority3)?.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
