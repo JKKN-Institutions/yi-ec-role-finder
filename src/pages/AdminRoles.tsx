@@ -90,6 +90,7 @@ const AdminRoles = () => {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("created_at");
   const [generatedPassword, setGeneratedPassword] = useState<string>("");
+  const [resetPassword, setResetPassword] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -180,6 +181,46 @@ const AdminRoles = () => {
   const copyPassword = () => {
     navigator.clipboard.writeText(generatedPassword);
     toast({ title: "Password copied to clipboard" });
+  };
+
+  const generateResetPassword = () => {
+    const length = 16;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setResetPassword(password);
+  };
+
+  const copyResetPassword = () => {
+    navigator.clipboard.writeText(resetPassword);
+    toast({ title: "Password copied to clipboard" });
+  };
+
+  const resetUserPassword = async () => {
+    if (!editingUser || !resetPassword) {
+      toast({ title: "Error", description: "Please generate a password first", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-user-roles', {
+        body: {
+          action: 'reset_password',
+          email: editingUser.email,
+          password: resetPassword
+        }
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error('Failed to reset password');
+
+      toast({ title: "Password reset successfully! Share the new password with the user." });
+      setResetPassword("");
+    } catch (error: any) {
+      toast({ title: "Error resetting password", description: error.message, variant: "destructive" });
+    }
   };
 
   const addUser = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -597,7 +638,10 @@ const AdminRoles = () => {
       </Card>
 
       {/* Edit Roles Dialog */}
-      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+      <Dialog open={!!editingUser} onOpenChange={() => {
+        setEditingUser(null);
+        setResetPassword("");
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Manage User Roles</DialogTitle>
@@ -666,6 +710,37 @@ const AdminRoles = () => {
                       </Label>
                     </div>
                   </div>
+                </div>
+                <div className="border-t pt-4">
+                  <Label>Reset Password</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Generate a new password for this user</p>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="text" 
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      placeholder="Click Generate to create password"
+                      className="font-mono"
+                    />
+                    <Button type="button" variant="outline" onClick={generateResetPassword}>
+                      Generate
+                    </Button>
+                    {resetPassword && (
+                      <>
+                        <Button type="button" variant="outline" onClick={copyResetPassword} size="icon">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" onClick={resetUserPassword}>
+                          Reset
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  {resetPassword && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Click Reset to update the password, then share it with the user.
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter className="mt-4">
