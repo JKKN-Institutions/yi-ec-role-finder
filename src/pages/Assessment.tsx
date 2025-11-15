@@ -121,7 +121,8 @@ const Assessment = () => {
       }
 
       if (assessment.status === "completed") {
-        navigate(`/results/${id}`);
+        toast.info("You have already completed this assessment");
+        navigate("/");
         return;
       }
 
