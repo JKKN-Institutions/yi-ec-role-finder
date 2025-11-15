@@ -1,0 +1,710 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Plus, Edit, Trash2, Download, Info } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { format } from "date-fns";
+
+type UserWithRoles = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  roles: string[];
+};
+
+const ROLE_COLORS: { [key: string]: string } = {
+  admin: "bg-red-500",
+  chair: "bg-blue-500",
+  co_chair: "bg-purple-500",
+  em: "bg-green-500",
+};
+
+const ROLE_DESCRIPTIONS = {
+  admin: {
+    title: "Admin",
+    description: "Full system access. Can manage users, verticals, all candidates, export data, and modify settings.",
+  },
+  chair: {
+    title: "Chair",
+    description: "Dashboard access to all tabs. Can review candidates, update statuses, add feedback and tracking. Cannot manage users or verticals.",
+  },
+  co_chair: {
+    title: "Co-Chair",
+    description: "Same as Chair. Typically 2-3 Co-Chairs per term.",
+  },
+  em: {
+    title: "EM (Executive Member)",
+    description: "Dashboard view access. Can view candidates and analytics. Read-only access, cannot modify data or settings.",
+  },
+};
+
+const AdminRoles = () => {
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
+  const [auditLog, setAuditLog] = useState<any[]>([]);
+  const [addingUser, setAddingUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
+  const [removingUser, setRemovingUser] = useState<UserWithRoles | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("created_at");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Get all users with roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+      if (rolesError) throw rolesError;
+
+      // Get profiles for all users with roles
+      const userIds = [...new Set(rolesData?.map(r => r.user_id) || [])];
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, created_at")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      // We can't directly query auth.users, so we'll use what we have
+      // Combine the data
+      const usersMap = new Map<string, UserWithRoles>();
+      
+      profilesData?.forEach((profile: any) => {
+        const userRoles = rolesData?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
+        usersMap.set(profile.id, {
+          id: profile.id,
+          email: "", // We'll need to get this from somewhere
+          full_name: profile.full_name,
+          created_at: profile.created_at,
+          last_sign_in_at: null,
+          roles: userRoles,
+        });
+      });
+
+      setUsers(Array.from(usersMap.values()));
+
+      // Load audit log
+      const { data: auditData } = await supabase
+        .from("user_role_audit")
+        .select("*, profiles!user_role_audit_affected_user_fkey(full_name)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      setAuditLog(auditData || []);
+    } catch (error: any) {
+      toast({ title: "Error loading data", description: error.message, variant: "destructive" });
+    }
+    setLoading(false);
+  };
+
+  const addUser = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const fullName = formData.get("full_name") as string;
+    const roles: string[] = [];
+
+    if (formData.get("role_admin")) roles.push("admin");
+    if (formData.get("role_chair")) roles.push("chair");
+    if (formData.get("role_co_chair")) roles.push("co_chair");
+    if (formData.get("role_em")) roles.push("em");
+
+    if (roles.length === 0) {
+      toast({ title: "Error", description: "Select at least one role", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Create user via Supabase Admin API
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+        },
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Failed to create user");
+
+      const userId = authData.user.id;
+      const { data: currentUser } = await supabase.auth.getUser();
+
+      // Insert roles
+      const roleInserts = roles.map(role => ({
+        user_id: userId,
+        role: role as "admin" | "chair" | "co_chair" | "em",
+      }));
+
+      const { error: rolesError } = await supabase.from("user_roles").insert(roleInserts);
+      if (rolesError) throw rolesError;
+
+      // Log audit
+      await supabase.from("user_role_audit").insert({
+        action: "created_user",
+        performed_by: currentUser.user?.id,
+        affected_user: userId,
+        role_name: roles.join(", "),
+      });
+
+      toast({ title: "Admin user created successfully" });
+      loadData();
+      setAddingUser(false);
+    } catch (error: any) {
+      toast({ title: "Error creating user", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const updateUserRoles = async () => {
+    if (!editingUser) return;
+
+    const formElement = document.querySelector("form[data-edit-roles]") as HTMLFormElement;
+    if (!formElement) return;
+
+    const formData = new FormData(formElement);
+    const newRoles: string[] = [];
+
+    if (formData.get("role_admin")) newRoles.push("admin");
+    if (formData.get("role_chair")) newRoles.push("chair");
+    if (formData.get("role_co_chair")) newRoles.push("co_chair");
+    if (formData.get("role_em")) newRoles.push("em");
+
+    if (newRoles.length === 0) {
+      toast({
+        title: "Warning",
+        description: "User will lose dashboard access",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: currentUser } = await supabase.auth.getUser();
+
+      // Delete all existing roles
+      await supabase.from("user_roles").delete().eq("user_id", editingUser.id);
+
+      // Insert new roles
+      const roleInserts = newRoles.map(role => ({
+        user_id: editingUser.id,
+        role: role as "admin" | "chair" | "co_chair" | "em",
+      }));
+
+      const { error } = await supabase.from("user_roles").insert(roleInserts);
+      if (error) throw error;
+
+      // Log audit for added/removed roles
+      const addedRoles = newRoles.filter(r => !editingUser.roles.includes(r));
+      const removedRoles = editingUser.roles.filter(r => !newRoles.includes(r));
+
+      const auditInserts = [
+        ...addedRoles.map(role => ({
+          action: "added_role" as const,
+          performed_by: currentUser.user?.id,
+          affected_user: editingUser.id,
+          role_name: role,
+        })),
+        ...removedRoles.map(role => ({
+          action: "removed_role" as const,
+          performed_by: currentUser.user?.id,
+          affected_user: editingUser.id,
+          role_name: role,
+        })),
+      ];
+
+      if (auditInserts.length > 0) {
+        await supabase.from("user_role_audit").insert(auditInserts);
+      }
+
+      toast({ title: `Roles updated for ${editingUser.full_name || editingUser.email}` });
+      loadData();
+      setEditingUser(null);
+    } catch (error: any) {
+      toast({ title: "Error updating roles", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const removeAccess = async () => {
+    if (!removingUser) return;
+
+    try {
+      const { data: currentUser } = await supabase.auth.getUser();
+
+      // Delete all roles
+      await supabase.from("user_roles").delete().eq("user_id", removingUser.id);
+
+      // Log audit
+      await supabase.from("user_role_audit").insert({
+        action: "removed_access",
+        performed_by: currentUser.user?.id,
+        affected_user: removingUser.id,
+      });
+
+      toast({ title: `${removingUser.full_name || removingUser.email} removed from admin access` });
+      loadData();
+      setRemovingUser(null);
+    } catch (error: any) {
+      toast({ title: "Error removing access", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const exportUsers = () => {
+    const csvData = [
+      ["Name", "Email", "Roles", "Created Date"],
+      ...users.map(u => [
+        u.full_name || "",
+        u.email,
+        u.roles.join("; "),
+        format(new Date(u.created_at), "yyyy-MM-dd"),
+      ]),
+    ]
+      .map(row => row.join(","))
+      .join("\n");
+
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "admin-users.csv";
+    a.click();
+    toast({ title: "Users exported" });
+  };
+
+  const getSortedUsers = () => {
+    let filtered = [...users];
+
+    if (roleFilter !== "all") {
+      filtered = filtered.filter(u => u.roles.includes(roleFilter));
+    }
+
+    filtered.sort((a, b) => {
+      if (sortBy === "name") return (a.full_name || a.email).localeCompare(b.full_name || b.email);
+      if (sortBy === "email") return a.email.localeCompare(b.email);
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return filtered;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const sortedUsers = getSortedUsers();
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">User Roles Management</h1>
+          <p className="text-muted-foreground">Manage admin access and permissions</p>
+        </div>
+        <div className="flex gap-2">
+          <Dialog open={addingUser} onOpenChange={setAddingUser}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Admin
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Admin User</DialogTitle>
+                <DialogDescription>Create a new admin user with dashboard access</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={addUser}>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Email *</Label>
+                    <Input name="email" type="email" required placeholder="admin@example.com" />
+                  </div>
+                  <div>
+                    <Label>Full Name *</Label>
+                    <Input name="full_name" required placeholder="John Doe" />
+                  </div>
+                  <div>
+                    <Label>Initial Roles (select 1+) *</Label>
+                    <div className="space-y-2 mt-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox name="role_admin" id="add-role-admin" />
+                        <Label htmlFor="add-role-admin" className="font-normal">
+                          Admin - Full system access
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox name="role_chair" id="add-role-chair" />
+                        <Label htmlFor="add-role-chair" className="font-normal">
+                          Chair - Dashboard access, no user management
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox name="role_co_chair" id="add-role-co-chair" />
+                        <Label htmlFor="add-role-co-chair" className="font-normal">
+                          Co-Chair - Same as Chair
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox name="role_em" id="add-role-em" />
+                        <Label htmlFor="add-role-em" className="font-normal">
+                          EM - Read-only dashboard access
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      User will receive an email with login instructions
+                    </AlertDescription>
+                  </Alert>
+                </div>
+                <DialogFooter className="mt-4">
+                  <Button type="submit">Create Admin User</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={exportUsers}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Admins</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{users.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Full Admins</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{users.filter(u => u.roles.includes("admin")).length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Chairs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">
+              {users.filter(u => u.roles.includes("chair") || u.roles.includes("co_chair")).length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>EMs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{users.filter(u => u.roles.includes("em")).length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Role Descriptions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Role Descriptions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            {Object.entries(ROLE_DESCRIPTIONS).map(([key, desc]) => (
+              <div key={key} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge className={ROLE_COLORS[key]}>{desc.title}</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">{desc.description}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Filters */}
+      <div className="flex gap-4">
+        <div>
+          <Label>Filter by Role</Label>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="w-48 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-background">
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="chair">Chair</SelectItem>
+              <SelectItem value="co_chair">Co-Chair</SelectItem>
+              <SelectItem value="em">EM</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Sort by</Label>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-48 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-background">
+              <SelectItem value="created_at">Created Date</SelectItem>
+              <SelectItem value="name">Name (A-Z)</SelectItem>
+              <SelectItem value="email">Email (A-Z)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Current Users</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Roles</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedUsers.map(user => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.full_name || "—"}</TableCell>
+                  <TableCell>{user.email || "—"}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 flex-wrap">
+                      {user.roles.map(role => (
+                        <Badge key={role} className={ROLE_COLORS[role]}>
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>{format(new Date(user.created_at), "MMM dd, yyyy")}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
+                        <Edit className="h-4 w-4 mr-1" />
+                        Manage
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRemovingUser(user)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Roles Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage User Roles</DialogTitle>
+            <DialogDescription>
+              Update roles for {editingUser?.full_name || editingUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          {editingUser && (
+            <form data-edit-roles>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Current roles:</p>
+                  <div className="flex gap-1 flex-wrap">
+                    {editingUser.roles.map(role => (
+                      <Badge key={role} className={ROLE_COLORS[role]}>
+                        {role}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label>Update Roles</Label>
+                  <div className="space-y-2 mt-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        name="role_admin"
+                        id="edit-role-admin"
+                        defaultChecked={editingUser.roles.includes("admin")}
+                      />
+                      <Label htmlFor="edit-role-admin" className="font-normal">
+                        Admin
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        name="role_chair"
+                        id="edit-role-chair"
+                        defaultChecked={editingUser.roles.includes("chair")}
+                      />
+                      <Label htmlFor="edit-role-chair" className="font-normal">
+                        Chair
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        name="role_co_chair"
+                        id="edit-role-co-chair"
+                        defaultChecked={editingUser.roles.includes("co_chair")}
+                      />
+                      <Label htmlFor="edit-role-co-chair" className="font-normal">
+                        Co-Chair
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        name="role_em"
+                        id="edit-role-em"
+                        defaultChecked={editingUser.roles.includes("em")}
+                      />
+                      <Label htmlFor="edit-role-em" className="font-normal">
+                        EM
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button type="button" onClick={updateUserRoles}>
+                  Update Roles
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Access Confirmation */}
+      <AlertDialog open={!!removingUser} onOpenChange={() => setRemovingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Admin Access?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke all admin access for {removingUser?.full_name || removingUser?.email}.
+              <br />
+              <br />
+              They can still complete assessments as a candidate.
+              <br />
+              <br />
+              This action can be reversed by re-adding them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={removeAccess}>Remove Access</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Audit Log */}
+      {auditLog.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Audit log of role management actions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Timestamp</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditLog.slice(0, 10).map(log => (
+                  <TableRow key={log.id}>
+                    <TableCell>{format(new Date(log.created_at), "MMM dd, yyyy HH:mm")}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {log.action.replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{log.profiles?.full_name || "Unknown"}</TableCell>
+                    <TableCell>{log.role_name || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default AdminRoles;

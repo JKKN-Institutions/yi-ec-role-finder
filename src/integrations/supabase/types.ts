@@ -234,6 +234,57 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_role_audit: {
+        Row: {
+          action: string
+          affected_user: string | null
+          created_at: string | null
+          id: string
+          performed_by: string | null
+          role_name: string | null
+        }
+        Insert: {
+          action: string
+          affected_user?: string | null
+          created_at?: string | null
+          id?: string
+          performed_by?: string | null
+          role_name?: string | null
+        }
+        Update: {
+          action?: string
+          affected_user?: string | null
+          created_at?: string | null
+          id?: string
+          performed_by?: string | null
+          role_name?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
