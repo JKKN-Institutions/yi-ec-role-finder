@@ -185,8 +185,8 @@ const Assessment = () => {
     const question = questionDefinitions[currentQuestion - 1];
 
     if (question.type === "vertical-select") {
-      if (!currentResponse.priority1) {
-        setValidationError("Please select at least your first priority");
+      if (!currentResponse.priority1 || !currentResponse.priority2 || !currentResponse.priority3) {
+        setValidationError("Please select all 3 priorities");
         return false;
       }
     } else if (question.type === "long-text") {
@@ -438,10 +438,10 @@ const Assessment = () => {
               <div>
                 <Label htmlFor="priority2" className="text-base font-medium">
                   <span className="inline-flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-muted-foreground text-sm font-bold">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">
                       2
                     </span>
-                    Second Priority (Optional)
+                    Second Priority (Required)
                   </span>
                 </Label>
                 <Select
@@ -498,10 +498,10 @@ const Assessment = () => {
               <div>
                 <Label htmlFor="priority3" className="text-base font-medium">
                   <span className="inline-flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-muted-foreground text-sm font-bold">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">
                       3
                     </span>
-                    Third Priority (Optional)
+                    Third Priority (Required)
                   </span>
                 </Label>
                 <Select
