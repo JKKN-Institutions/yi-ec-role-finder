@@ -74,12 +74,12 @@ const Index = () => {
             <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
               Discover Your Perfect
               <span className="block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mt-2">
-                EC Role
+                Role Match
               </span>
             </h1>
 
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              AI-powered assessment to match you with the right Executive Committee position based on your skills and motivation
+              AI-powered assessment to match you with the right position based on your skills and motivation
             </p>
 
             <Button 
@@ -98,7 +98,7 @@ const Index = () => {
           <DialogHeader>
             <DialogTitle>Start Your Assessment</DialogTitle>
             <DialogDescription>
-              Enter your details to begin the EC role assessment
+              Enter your details to begin the role assessment
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

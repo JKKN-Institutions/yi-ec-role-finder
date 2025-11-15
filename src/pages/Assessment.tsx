@@ -62,10 +62,10 @@ const questionDefinitions = [
   },
   {
     number: 3,
-    title: "Your EC 2026 Commitment",
+    title: "Your 2026 Commitment",
     type: "short-text",
     instruction: "Complete this sentence:",
-    prompt: "If I'm on EC 2026, by December 2026 I will have...",
+    prompt: "By December 2026 I will have...",
     placeholder: "Be specific with numbers and action verbs...",
     minChars: 30,
     maxChars: 300,

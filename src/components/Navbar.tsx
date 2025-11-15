@@ -59,7 +59,7 @@ export const Navbar = () => {
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
               Yi
             </div>
-            <span className="font-semibold text-lg">EC 2026 Role Finder</span>
+            <span className="font-semibold text-lg">Role Finder Assessment</span>
           </div>
         </Link>
 
