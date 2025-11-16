@@ -15,6 +15,7 @@ import AccessDenied from "./pages/AccessDenied";
 import Admin from "./pages/Admin";
 import CandidateProfile from "./pages/CandidateProfile";
 import AdminScoreComparison from "./pages/AdminScoreComparison";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/admin/roles" element={<Admin />} />
           <Route path="/admin/activity-log" element={<Admin />} />
           <Route path="/admin/score-comparison" element={<AdminScoreComparison />} />
+          <Route path="/admin/super-dashboard" element={<SuperAdminDashboard />} />
           <Route path="/admin/candidate/:assessmentId" element={<CandidateProfile />} />
           <Route path="/access-denied" element={<AccessDenied />} />
           <Route path="*" element={<NotFound />} />

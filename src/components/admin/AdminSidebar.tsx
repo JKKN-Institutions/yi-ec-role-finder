@@ -10,6 +10,7 @@ import {
   Layers,
   UserCog,
   FileText,
+  Shield,
 } from "lucide-react";
 import { useRole } from "@/contexts/RoleContext";
 import { hasPermission } from "@/lib/roleHierarchy";
@@ -27,6 +28,7 @@ import {
 
 const navigationItems = [
   { title: "Overview", url: "/admin", icon: LayoutDashboard, end: true, permission: null },
+  { title: "Super Dashboard", url: "/admin/super-dashboard", icon: Shield, permission: "manage_system_settings" },
   { title: "Candidates", url: "/admin/candidates", icon: Users, permission: "manage_candidates" },
   { title: "Comparison", url: "/admin/comparison", icon: GitCompare, permission: "view_all_assessments" },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "view_all_assessments" },
