@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Link as LinkIcon, Copy, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Chapter {
@@ -17,6 +17,7 @@ interface Chapter {
   name: string;
   slug: string;
   chapter_type: "regular" | "yuva" | "thalir";
+  parent_chapter_id?: string | null;
   description: string | null;
   location: string | null;
   contact_email: string | null;
@@ -39,6 +40,7 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
     name: "",
     slug: "",
     chapter_type: "regular" as "regular" | "yuva" | "thalir",
+    parent_chapter_id: undefined as string | undefined,
     description: "",
     location: "",
     contact_email: "",
@@ -56,7 +58,7 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
       const { data, error } = await supabase
         .from("chapters" as any)
         .select("*")
-        .order("display_order");
+        .order("parent_chapter_id nulls first, display_order");
 
       if (error) throw error;
       setChapters((data as any) || []);
@@ -88,12 +90,13 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
     });
   };
 
-  const openAddDialog = () => {
+  const openAddDialog = (parentChapterId?: string) => {
     setEditingChapter(null);
     setFormData({
       name: "",
       slug: "",
       chapter_type: "regular",
+      parent_chapter_id: parentChapterId,
       description: "",
       location: "",
       contact_email: "",
@@ -110,6 +113,7 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
       name: chapter.name,
       slug: chapter.slug,
       chapter_type: chapter.chapter_type,
+      parent_chapter_id: chapter.parent_chapter_id || undefined,
       description: chapter.description || "",
       location: chapter.location || "",
       contact_email: chapter.contact_email || "",
@@ -129,30 +133,36 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
           .eq("id", editingChapter.id);
 
         if (error) throw error;
-        toast({ title: "Success", description: "Chapter updated successfully" });
+        toast({
+          title: "Success",
+          description: "Chapter updated successfully"
+        });
       } else {
         const { error } = await supabase
           .from("chapters" as any)
-          .insert(formData);
+          .insert([formData]);
 
         if (error) throw error;
-        toast({ title: "Success", description: "Chapter created successfully" });
+        toast({
+          title: "Success",
+          description: "Chapter created successfully"
+        });
       }
 
       setDialogOpen(false);
       loadChapters();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saving chapter:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save chapter",
+        description: "Failed to save chapter",
         variant: "destructive"
       });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this chapter? All associated data will be lost.")) {
+    if (!confirm("Are you sure you want to delete this chapter? This action cannot be undone.")) {
       return;
     }
 
@@ -163,33 +173,32 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
         .eq("id", id);
 
       if (error) throw error;
-      toast({ title: "Success", description: "Chapter deleted successfully" });
+      toast({
+        title: "Success",
+        description: "Chapter deleted successfully"
+      });
       loadChapters();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error deleting chapter:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete chapter",
+        description: "Failed to delete chapter",
         variant: "destructive"
       });
     }
   };
 
-  const toggleActive = async (chapter: Chapter) => {
+  const toggleActive = async (id: string, currentState: boolean) => {
     try {
       const { error } = await supabase
         .from("chapters" as any)
-        .update({ is_active: !chapter.is_active })
-        .eq("id", chapter.id);
+        .update({ is_active: !currentState })
+        .eq("id", id);
 
       if (error) throw error;
-      toast({
-        title: "Success",
-        description: `Chapter ${!chapter.is_active ? "activated" : "deactivated"}`
-      });
       loadChapters();
     } catch (error) {
-      console.error("Error toggling chapter:", error);
+      console.error("Error toggling chapter status:", error);
       toast({
         title: "Error",
         description: "Failed to update chapter status",
@@ -211,74 +220,136 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
     return `${window.location.origin}/chapter/${slug}`;
   };
 
+  const getParentChapters = () => {
+    return chapters.filter(c => !c.parent_chapter_id);
+  };
+
+  const getChildChapters = (parentId: string) => {
+    return chapters.filter(c => c.parent_chapter_id === parentId);
+  };
+
+  const renderChapterCard = (chapter: Chapter, level: number = 0) => (
+    <Card key={chapter.id} className={`${level > 0 ? 'ml-8 border-l-4 border-primary/30' : ''}`}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CardTitle className="flex items-center gap-2">
+              {level > 0 && <span className="text-muted-foreground">↳</span>}
+              {chapter.name}
+              <Badge className={`${getChapterTypeColor(chapter.chapter_type)} text-white`}>
+                {chapter.chapter_type}
+              </Badge>
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={chapter.is_active}
+              onCheckedChange={() => toggleActive(chapter.id, chapter.is_active)}
+            />
+            <span className="text-sm text-muted-foreground">
+              {chapter.is_active ? "Active" : "Inactive"}
+            </span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="font-medium">Slug:</span> {chapter.slug}
+          </div>
+          <div>
+            <span className="font-medium">Location:</span> {chapter.location || "—"}
+          </div>
+          <div>
+            <span className="font-medium">Contact:</span> {chapter.contact_email || "—"}
+          </div>
+          <div>
+            <span className="font-medium">Phone:</span> {chapter.contact_phone || "—"}
+          </div>
+        </div>
+
+        {chapter.description && (
+          <p className="text-sm text-muted-foreground">{chapter.description}</p>
+        )}
+
+        <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+          <LinkIcon className="h-4 w-4" />
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-1">Assessment URL:</p>
+            <code className="text-xs">{getAssessmentUrl(chapter.slug)}</code>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              navigator.clipboard.writeText(getAssessmentUrl(chapter.slug));
+              toast({
+                title: "Copied",
+                description: "URL copied to clipboard"
+              });
+            }}
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          {!chapter.parent_chapter_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openAddDialog(chapter.id)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Sub-Chapter
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openEditDialog(chapter)}
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => handleDelete(chapter.id)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
-    return <div className="flex justify-center p-8">Loading...</div>;
+    return <div>Loading chapters...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Chapter Management</h2>
-        <Button onClick={openAddDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Chapter
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">Chapter Management</h2>
+          <p className="text-muted-foreground">Create and manage parent chapters and sub-chapters</p>
+        </div>
+        <Button onClick={() => openAddDialog()}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Parent Chapter
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {chapters.map((chapter) => (
-          <Card key={chapter.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{chapter.name}</CardTitle>
-                  <CardDescription className="mt-1">
-                    <Badge className={getChapterTypeColor(chapter.chapter_type)}>
-                      {chapter.chapter_type}
-                    </Badge>
-                  </CardDescription>
-                </div>
-                <Switch
-                  checked={chapter.is_active}
-                  onCheckedChange={() => toggleActive(chapter)}
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {chapter.location && (
-                <p className="text-sm text-muted-foreground">{chapter.location}</p>
-              )}
-              {chapter.description && (
-                <p className="text-sm">{chapter.description}</p>
-              )}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <code className="bg-muted px-2 py-1 rounded text-xs">
-                  /{chapter.slug}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open(getAssessmentUrl(chapter.slug), "_blank")}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => openEditDialog(chapter)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(chapter.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        {getParentChapters().map((parentChapter) => (
+          <div key={parentChapter.id} className="space-y-4">
+            {renderChapterCard(parentChapter, 0)}
+            {getChildChapters(parentChapter.id).map((childChapter) =>
+              renderChapterCard(childChapter, 1)
+            )}
+          </div>
         ))}
       </div>
 
@@ -286,42 +357,68 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingChapter ? "Edit Chapter" : "Create New Chapter"}
+              {editingChapter ? "Edit Chapter" : "Add Chapter"}
             </DialogTitle>
             <DialogDescription>
-              Configure chapter details and assessment portal settings
+              {editingChapter 
+                ? "Update the chapter information below." 
+                : "Fill in the details to create a new chapter."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Chapter Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Chennai Yuva Chapter"
-              />
+          <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Chapter Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="e.g., Chennai YI or Chennai Yuva North"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="slug">URL Slug *</Label>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  placeholder="e.g., chennai-yi or chennai-yuva-north"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="slug">URL Slug *</Label>
-              <Input
-                id="slug"
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                placeholder="chennai-yuva"
-              />
-              <p className="text-xs text-muted-foreground">
-                Assessment URL: {window.location.origin}/chapter/{formData.slug}
-              </p>
-            </div>
+            {!editingChapter && (
+              <div className="space-y-2">
+                <Label htmlFor="parent">Parent Chapter (Optional)</Label>
+                <Select
+                  value={formData.parent_chapter_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, parent_chapter_id: value === "none" ? undefined : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="None - This is a parent chapter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None - This is a parent chapter</SelectItem>
+                    {getParentChapters().map((chapter) => (
+                      <SelectItem key={chapter.id} value={chapter.id}>
+                        {chapter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label htmlFor="chapter_type">Chapter Type *</Label>
+              <Label htmlFor="type">Chapter Type *</Label>
               <Select
                 value={formData.chapter_type}
-                onValueChange={(value: any) => setFormData({ ...formData, chapter_type: value })}
+                onValueChange={(value: "regular" | "yuva" | "thalir") =>
+                  setFormData({ ...formData, chapter_type: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -335,56 +432,57 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Chennai, Tamil Nadu"
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Brief description of the chapter"
+                placeholder="Chapter description"
                 rows={3}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="contact_email">Contact Email</Label>
+                <Label htmlFor="location">Location</Label>
                 <Input
-                  id="contact_email"
-                  type="email"
-                  value={formData.contact_email}
-                  onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                  placeholder="admin@chapter.org"
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="e.g., Chennai, Tamil Nadu"
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="contact_phone">Contact Phone</Label>
+                <Label htmlFor="display_order">Display Order</Label>
                 <Input
-                  id="contact_phone"
-                  value={formData.contact_phone}
-                  onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                  placeholder="+91 98765 43210"
+                  id="display_order"
+                  type="number"
+                  value={formData.display_order}
+                  onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
                 />
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="is_active"
-                checked={formData.is_active}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-              />
-              <Label htmlFor="is_active">Chapter is active</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Contact Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.contact_email}
+                  onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                  placeholder="contact@chapter.org"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Contact Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.contact_phone}
+                  onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+                  placeholder="+91 1234567890"
+                />
+              </div>
             </div>
           </div>
 
@@ -393,7 +491,7 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
               Cancel
             </Button>
             <Button onClick={handleSave}>
-              {editingChapter ? "Update" : "Create"} Chapter
+              {editingChapter ? "Update Chapter" : "Create Chapter"}
             </Button>
           </DialogFooter>
         </DialogContent>
