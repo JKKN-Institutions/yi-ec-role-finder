@@ -10,6 +10,8 @@ interface Chapter {
   chapter_type: "regular" | "yuva" | "thalir";
   chapter_slug: string;
   user_role: string;
+  parent_chapter_id: string | null;
+  is_parent: boolean;
 }
 
 interface ChapterSelectorProps {
@@ -82,6 +84,14 @@ const ChapterSelector = ({ value, onChange }: ChapterSelectorProps) => {
     }
   };
 
+  const getParentChapters = () => {
+    return chapters.filter(c => c.is_parent);
+  };
+
+  const getChildChapters = (parentId: string) => {
+    return chapters.filter(c => c.parent_chapter_id === parentId);
+  };
+
   if (loading) {
     return <div className="w-64 h-10 bg-muted animate-pulse rounded-md" />;
   }
@@ -101,15 +111,28 @@ const ChapterSelector = ({ value, onChange }: ChapterSelectorProps) => {
               </div>
             </SelectItem>
           )}
-          {chapters.map((chapter) => (
-            <SelectItem key={chapter.chapter_id} value={chapter.chapter_id}>
-              <div className="flex items-center gap-2">
-                <span>{chapter.chapter_name}</span>
-                <Badge className={`${getTypeColor(chapter.chapter_type)} text-white text-xs`}>
-                  {chapter.chapter_type}
-                </Badge>
-              </div>
-            </SelectItem>
+          {getParentChapters().map((parentChapter) => (
+            <>
+              <SelectItem key={parentChapter.chapter_id} value={parentChapter.chapter_id}>
+                <div className="flex items-center gap-2 font-semibold">
+                  <span>{parentChapter.chapter_name}</span>
+                  <Badge className={`${getTypeColor(parentChapter.chapter_type)} text-white text-xs`}>
+                    {parentChapter.chapter_type}
+                  </Badge>
+                </div>
+              </SelectItem>
+              {getChildChapters(parentChapter.chapter_id).map((childChapter) => (
+                <SelectItem key={childChapter.chapter_id} value={childChapter.chapter_id}>
+                  <div className="flex items-center gap-2 pl-4">
+                    <span className="text-muted-foreground">↳</span>
+                    <span>{childChapter.chapter_name}</span>
+                    <Badge className={`${getTypeColor(childChapter.chapter_type)} text-white text-xs`}>
+                      {childChapter.chapter_type}
+                    </Badge>
+                  </div>
+                </SelectItem>
+              ))}
+            </>
           ))}
         </SelectContent>
       </Select>
