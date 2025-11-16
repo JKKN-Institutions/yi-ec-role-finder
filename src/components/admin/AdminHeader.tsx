@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { LogOut, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { RoleSwitcher } from "./RoleSwitcher";
+import { useRole } from "@/contexts/RoleContext";
+import { ROLE_LABELS } from "@/lib/roleHierarchy";
 
 interface AdminHeaderProps {
   breadcrumb: string;
@@ -14,30 +17,13 @@ interface AdminHeaderProps {
 export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
-  const [userRole, setUserRole] = useState("");
+  const { activeRole } = useRole();
 
   useEffect(() => {
     const loadUserInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserName(user.email?.split("@")[0] || "Admin");
-        
-        // Get user role
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .single();
-        
-        if (roles) {
-          const roleLabels: Record<string, string> = {
-            admin: "Admin",
-            chair: "Chair",
-            co_chair: "Co-Chair",
-            em: "EM",
-          };
-          setUserRole(roleLabels[roles.role] || roles.role);
-        }
       }
     };
 
@@ -45,10 +31,21 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
   }, []);
 
   const handleLogout = async () => {
+    // Log logout activity
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.rpc("log_admin_action", {
+        _admin_user_id: user.id,
+        _admin_email: user.email || "",
+        _action_type: "logout",
+      });
+    }
+
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error("Failed to logout");
     } else {
+      localStorage.removeItem("activeRole");
       toast.success("Logged out successfully");
       navigate("/login");
     }
@@ -65,11 +62,15 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-4">
+        <RoleSwitcher />
+        
         <div className="text-right">
           <p className="text-sm font-medium">{userName}</p>
-          <Badge variant="secondary" className="text-xs">
-            {userRole}
-          </Badge>
+          {activeRole && (
+            <Badge variant="secondary" className="text-xs">
+              {ROLE_LABELS[activeRole]}
+            </Badge>
+          )}
         </div>
         
         <Button

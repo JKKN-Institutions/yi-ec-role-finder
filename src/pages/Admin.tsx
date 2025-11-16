@@ -12,14 +12,18 @@ import AdminTracking from "./AdminTracking";
 import AdminVerticals from "./AdminVerticals";
 import AdminRoles from "./AdminRoles";
 import AdminCandidates from "./AdminCandidates";
+import AdminActivityLog from "./AdminActivityLog";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { RoleProvider } from "@/contexts/RoleContext";
+import { useActivityLogger } from "@/hooks/useActivityLogger";
 
-const Admin = () => {
+const AdminContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  useActivityLogger();
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -72,6 +76,7 @@ const Admin = () => {
     if (location.pathname === "/admin/tracking") return <AdminTracking />;
     if (location.pathname === "/admin/verticals") return <AdminVerticals />;
     if (location.pathname === "/admin/roles") return <AdminRoles />;
+    if (location.pathname === "/admin/activity-log") return <AdminActivityLog />;
     return <AdminOverview />;
   };
 
@@ -83,6 +88,7 @@ const Admin = () => {
     if (location.pathname === "/admin/tracking") return "Tracking";
     if (location.pathname === "/admin/verticals") return "Verticals";
     if (location.pathname === "/admin/roles") return "User Roles";
+    if (location.pathname === "/admin/activity-log") return "Activity Log";
     return "Overview";
   };
 
@@ -98,6 +104,14 @@ const Admin = () => {
         </div>
       </div>
     </SidebarProvider>
+  );
+};
+
+const Admin = () => {
+  return (
+    <RoleProvider>
+      <AdminContent />
+    </RoleProvider>
   );
 };
 

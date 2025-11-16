@@ -85,6 +85,13 @@ const Login = () => {
           .eq("user_id", user.id)
           .single();
         
+        // Log successful login
+        await supabase.rpc("log_admin_action", {
+          _admin_user_id: user.id,
+          _admin_email: user.email || "",
+          _action_type: "login",
+        });
+
         toast.success("Signed in successfully");
         const redirectPath = userRoles ? getRedirectPath(userRoles.role) : "/";
         navigate(redirectPath);
