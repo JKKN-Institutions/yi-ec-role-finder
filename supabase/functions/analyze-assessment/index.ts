@@ -117,49 +117,46 @@ serve(async (req) => {
     // Q1 - Vertical Preferences (0 points - informational only)
     willBreakdown.vertical_preferences = 0;
 
-    // Q3 - Achievement Statement (0-25 points)
+    // Q3 - Achievement Statement (0-25 points) - More generous scoring
     const q3Data = responseMap[3].response_data;
     const achievementText = q3Data.statement || "";
-    let q3Score = 0;
+    let q3Score = 5; // Base score for attempting
 
-    // Contains specific numbers (5 points each, max 10)
+    // Contains specific numbers (3 points each, max 10)
     const numbers = achievementText.match(/\d+/g);
     if (numbers && numbers.length > 0) {
-      q3Score += Math.min(numbers.length * 5, 10);
+      q3Score += Math.min(numbers.length * 3, 10);
     }
 
-    // Contains action verbs (5 points each, max 10)
-    const actionVerbs = ["built", "launched", "created", "increased", "grew", "led", "delivered", "achieved"];
+    // Contains action verbs or achievement indicators (3 points each, max 8)
+    const actionVerbs = ["built", "launched", "created", "increased", "grew", "led", "delivered", "achieved", "organized", "coordinated", "managed", "developed"];
     const verbMatches = actionVerbs.filter((verb) =>
       achievementText.toLowerCase().includes(verb)
     );
-    q3Score += Math.min(verbMatches.length * 5, 10);
+    q3Score += Math.min(verbMatches.length * 3, 8);
 
-    // No hedging words (+5 bonus)
-    const hedgingWords = ["try", "hopefully", "maybe", "might", "perhaps"];
-    const hasHedging = hedgingWords.some((word) =>
-      achievementText.toLowerCase().includes(word)
-    );
-    if (!hasHedging && achievementText.length > 30) {
-      q3Score += 5;
+    // Meaningful content bonus (any response > 50 chars gets +2)
+    if (achievementText.length > 50) {
+      q3Score += 2;
     }
 
-    willBreakdown.achievement = q3Score;
-    willScore += q3Score;
+    willBreakdown.achievement = Math.min(q3Score, 25);
+    willScore += willBreakdown.achievement;
 
-    // Q4 - Constraints (0-30 points)
+    // Q4 - Constraints (0-25 points) - More realistic scoring
     const q4Data = responseMap[4].response_data;
     const constraint = q4Data.constraint || "";
     const handling = q4Data.handling || "";
     let q4Score = 0;
 
-    if (constraint === "none") q4Score = 20;
-    else if (constraint === "time") q4Score = 15;
-    else if (constraint === "expectations") q4Score = 10;
-    else if (constraint === "skills") q4Score = 5;
+    if (constraint === "none") q4Score = 25;
+    else if (constraint === "time") q4Score = 20;
+    else if (constraint === "expectations") q4Score = 15;
+    else if (constraint === "skills") q4Score = 12;
 
+    // Bonus for thoughtful handling (any constraint with explanation shows self-awareness)
     if (constraint !== "none" && handling.length > 20) {
-      q4Score += 10; // Bonus for handling explanation
+      q4Score = Math.min(q4Score + 8, 25);
     }
 
     willBreakdown.constraints = q4Score;
@@ -181,19 +178,21 @@ serve(async (req) => {
     const q2Data = responseMap[2].response_data;
     const scenarioResponse = q2Data.response || "";
 
-    let q2Score = 15; // Fallback score
+    let q2Score = 20; // Fallback score (more generous)
     let q2Reasoning = "Using fallback scoring";
 
     try {
-      const q2Prompt = `Analyze this emergency response for commitment level. Score 0-25 based on:
-- Immediate willingness (0-8 points)
-- Enthusiasm and positive attitude (0-7 points)
-- Constraint acknowledgment with solutions (0-5 points)
-- Team-first mindset (0-5 points)
+      const q2Prompt = `Analyze this emergency response for commitment level from a STUDENT LEADER perspective. Score 0-30 based on:
+- Willingness to help (0-10 points): Any indication of joining = 6-10 points
+- Attitude (0-10 points): Neutral/willing = 5-7, Enthusiastic = 8-10
+- Solutions to constraints (0-5 points): Acknowledging limitations = 3-5
+- Team focus (0-5 points): Showing up = 3-5 points
+
+Be GENEROUS - these are students balancing commitments, not full-time professionals.
 
 Response: "${scenarioResponse}"
 
-Provide a score and brief reasoning.`;
+Provide a score (15-30 range for anyone showing up) and brief reasoning.`;
 
       const q2Result = await callAI(
         [
@@ -209,7 +208,7 @@ Provide a score and brief reasoning.`;
               parameters: {
                 type: "object",
                 properties: {
-                  score: { type: "integer", minimum: 0, maximum: 25 },
+                  score: { type: "integer", minimum: 0, maximum: 30 },
                   reasoning: { type: "string" }
                 },
                 required: ["score", "reasoning"],
@@ -235,7 +234,7 @@ Provide a score and brief reasoning.`;
 
     // 3. CALCULATE SKILL SCORE (0-100, AI-based)
     const q1Data = responseMap[1].response_data;
-    const skillPrompt = `You are analyzing a leadership assessment for Yi Erode Executive Committee. Score the candidate's SKILL level (0-100) based on all responses.
+    const skillPrompt = `You are analyzing a leadership assessment for STUDENT LEADERS at Yi Erode Executive Committee. Focus on POTENTIAL and INTENT, not polish.
 
 RESPONSES:
 Q1 - Vertical Preferences: Priority 1: ${q1Data.priority1 || "N/A"}, Priority 2: ${q1Data.priority2 || "N/A"}, Priority 3: ${q1Data.priority3 || "N/A"}
@@ -244,11 +243,11 @@ Q3 - Achievement Statement: ${achievementText}
 Q4 - Constraints: ${constraint} - ${handling || "No handling explanation"}
 Q5 - Leadership Style: ${leadershipStyle}
 
-Score each dimension 0-25 points:
-1. SOPHISTICATION (0-25): Communication clarity, nuance, emotional intelligence, professional maturity
-2. STRATEGIC THINKING (0-25): Long-term vision, systems thinking, root cause analysis vs surface solutions
-3. OUTCOME ORIENTATION (0-25): Results focus, specificity, measurable goals, execution mindset
-4. LEADERSHIP SIGNALS (0-25): Initiative taking, team orientation, responsibility ownership, influence
+Score each dimension 0-25 points. BE GENEROUS - base score 12-15 for reasonable effort:
+1. SOPHISTICATION (0-25): Can they communicate their ideas? IGNORE typos/grammar. Basic clarity = 12-15, good = 16-20, excellent = 21-25
+2. STRATEGIC THINKING (0-25): Do they show any planning or problem-solving? Any approach mentioned = 12-18, detailed = 19-25
+3. OUTCOME ORIENTATION (0-25): Do they mention goals or results? Any result/goal = 12-18, specific outcomes = 19-25
+4. LEADERSHIP SIGNALS (0-25): Do they show initiative or responsibility? Any proactive behavior = 12-18, clear leadership = 19-25
 
 Return the scores and reasoning.`;
 
@@ -300,11 +299,11 @@ Return the scores and reasoning.`;
 
     console.log(`SKILL Score: ${skillScore}`, skillBreakdown);
 
-    // 4. DETERMINE QUADRANT
+    // 4. DETERMINE QUADRANT (Adjusted thresholds for student leaders)
     let quadrant = "";
-    if (willScore >= 60 && skillScore >= 60) quadrant = "Q1";
-    else if (willScore >= 60 && skillScore < 60) quadrant = "Q2";
-    else if (willScore < 60 && skillScore < 60) quadrant = "Q3";
+    if (willScore >= 55 && skillScore >= 50) quadrant = "Q1";
+    else if (willScore >= 55 && skillScore < 50) quadrant = "Q2";
+    else if (willScore < 55 && skillScore < 50) quadrant = "Q3";
     else quadrant = "Q4";
 
     const quadrantLabels: Record<string, string> = {
@@ -316,28 +315,34 @@ Return the scores and reasoning.`;
 
     console.log(`Quadrant: ${quadrant} - ${quadrantLabels[quadrant]}`);
 
-    // 5. RECOMMEND ROLE
+    // 5. RECOMMEND ROLE (More accessible criteria)
     let recommendedRole = "";
     let roleExplanation = "";
 
     if (quadrant === "Q1") {
-      recommendedRole = willScore >= 80 ? "Chair" : "Co-Chair";
-      roleExplanation = `As a ${quadrantLabels[quadrant]} candidate with high WILL (${willScore}) and SKILL (${skillScore}), you demonstrate both the motivation and capability for senior leadership. ${
-        willScore >= 80 ? "Your exceptional commitment qualifies you for the Chair position." : "You're well-suited for the Co-Chair role."
+      recommendedRole = willScore >= 70 ? "Chair" : "Co-Chair";
+      roleExplanation = `As a ${quadrantLabels[quadrant]} candidate with strong WILL (${willScore}) and SKILL (${skillScore}), you demonstrate both motivation and capability for senior leadership. ${
+        willScore >= 70 ? "Your exceptional commitment qualifies you for the Chair position." : "You're well-suited for the Co-Chair role."
       }`;
     } else if (quadrant === "Q2") {
-      recommendedRole = willScore >= 75 ? "Executive Member (EM)" : "Vertical Lead";
-      roleExplanation = `Your high WILL (${willScore}) shows strong commitment, while your developing SKILL (${skillScore}) suggests you'd thrive in ${
-        willScore >= 75 ? "an Executive Member role with mentorship" : "a Vertical Lead position to build experience"
+      recommendedRole = willScore >= 65 ? "Executive Member (EM)" : "Vertical Lead";
+      roleExplanation = `Your strong WILL (${willScore}) shows excellent commitment. While your SKILL (${skillScore}) is developing, you'd thrive in ${
+        willScore >= 65 ? "an Executive Member role with mentorship" : "a Vertical Lead position to build experience"
       }.`;
     } else if (quadrant === "Q4") {
-      recommendedRole = skillScore >= 75 ? "Technical Advisor" : "Subject Matter Expert";
-      roleExplanation = `Your strong SKILL (${skillScore}) is valuable, though your WILL (${willScore}) suggests ${
-        skillScore >= 75 ? "a Technical Advisor role" : "contributing as a Subject Matter Expert"
-      } might better align with your current capacity.`;
+      recommendedRole = skillScore >= 60 ? "Technical Advisor" : "Subject Matter Expert";
+      roleExplanation = `Your strong SKILL (${skillScore}) is valuable. Though your WILL (${willScore}) suggests limited availability, you'd excel ${
+        skillScore >= 60 ? "as a Technical Advisor" : "contributing as a Subject Matter Expert"
+      }.`;
     } else {
-      recommendedRole = "Active Volunteer";
-      roleExplanation = `With developing WILL (${willScore}) and SKILL (${skillScore}), starting as an Active Volunteer allows you to build experience and discover your passion within Yi.`;
+      // Q3 - but be more nuanced
+      if (willScore >= 45 || skillScore >= 40) {
+        recommendedRole = "Vertical Lead";
+        roleExplanation = `Your WILL (${willScore}) and SKILL (${skillScore}) show good potential. Starting as a Vertical Lead will help you build experience and grow into senior roles.`;
+      } else {
+        recommendedRole = "Active Volunteer";
+        roleExplanation = `Starting as an Active Volunteer allows you to build experience and discover your passion within Yi as you develop your WILL (${willScore}) and SKILL (${skillScore}).`;
+      }
     }
 
     // 6. VERTICAL MATCHING
