@@ -170,6 +170,23 @@ const AdminUserManagement = () => {
 
       if (response.error) throw response.error;
 
+      // Log the action
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const chapterName = selectedChapter ? chapters.find(c => c.id === selectedChapter)?.name : "All Chapters";
+        await (supabase as any).rpc("log_admin_action", {
+          _admin_user_id: user.id,
+          _admin_email: user.email,
+          _action_type: "user_invited",
+          _target_type: "user",
+          _details: {
+            target_email: email,
+            role: selectedRole,
+            chapter_name: chapterName
+          }
+        });
+      }
+
       toast({
         title: "Success",
         description: "User invited successfully"
@@ -200,6 +217,21 @@ const AdminUserManagement = () => {
       });
 
       if (response.error) throw response.error;
+
+      // Log the action
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await (supabase as any).rpc("log_admin_action", {
+          _admin_user_id: user.id,
+          _admin_email: user.email,
+          _action_type: "user_removed",
+          _target_type: "user",
+          _target_id: userId,
+          _details: {
+            target_email: email
+          }
+        });
+      }
 
       toast({
         title: "Success",

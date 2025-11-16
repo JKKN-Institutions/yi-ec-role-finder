@@ -12,6 +12,7 @@ import AdminTracking from "./AdminTracking";
 import AdminVerticals from "./AdminVerticals";
 import AdminRoles from "./AdminRoles";
 import AdminCandidates from "./AdminCandidates";
+import AdminAuditLog from "./AdminAuditLog";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
@@ -104,6 +105,7 @@ const Admin = () => {
     if (location.pathname === "/admin/tracking") return <AdminTracking />;
     if (location.pathname === "/admin/verticals") return <AdminVerticals />;
     if (location.pathname === "/admin/roles") return <AdminRoles />;
+    if (location.pathname === "/admin/audit") return <AdminAuditLog />;
     return <AdminOverview />;
   };
 
@@ -115,6 +117,7 @@ const Admin = () => {
     if (location.pathname === "/admin/tracking") return "Tracking";
     if (location.pathname === "/admin/verticals") return "Verticals";
     if (location.pathname === "/admin/roles") return "User Roles";
+    if (location.pathname === "/admin/audit") return "Audit Log";
     return "Overview";
   };
 

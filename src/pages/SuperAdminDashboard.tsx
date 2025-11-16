@@ -5,6 +5,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, TrendingUp, Users, FileText, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from "recharts";
+import { format, subDays, startOfDay } from "date-fns";
 
 interface Chapter {
   id: string;
@@ -46,6 +62,8 @@ const SuperAdminDashboard = () => {
     avgCompletionRate: 0
   });
   const [loading, setLoading] = useState(true);
+  const [trendsData, setTrendsData] = useState<any[]>([]);
+  const [chapterPerformance, setChapterPerformance] = useState<any[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -95,7 +113,9 @@ const SuperAdminDashboard = () => {
       await Promise.all([
         loadChapters(),
         loadRecentActivity(),
-        loadSystemStats()
+        loadSystemStats(),
+        loadTrendsData(),
+        loadChapterPerformance()
       ]);
     } catch (error) {
       console.error("Error loading dashboard:", error);
@@ -228,6 +248,71 @@ const SuperAdminDashboard = () => {
       totalChapters: chaptersResponse.data?.length || 0,
       avgCompletionRate: total > 0 ? Math.round((completed / total) * 100) : 0
     });
+  };
+
+  const loadTrendsData = async () => {
+    // Get assessments from last 30 days
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    
+    const response: any = await (supabase as any)
+      .from("assessments")
+      .select("created_at, status")
+      .gte("created_at", thirtyDaysAgo.toISOString());
+
+    const data: any[] = response.data || [];
+    
+    // Group by date
+    const dateMap = new Map<string, { total: number; completed: number }>();
+    
+    data.forEach(assessment => {
+      const date = format(startOfDay(new Date(assessment.created_at)), "MMM dd");
+      const current = dateMap.get(date) || { total: 0, completed: 0 };
+      current.total++;
+      if (assessment.status === "completed") {
+        current.completed++;
+      }
+      dateMap.set(date, current);
+    });
+
+    const trends = Array.from(dateMap.entries()).map(([date, stats]) => ({
+      date,
+      total: stats.total,
+      completed: stats.completed,
+      completionRate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
+    }));
+
+    setTrendsData(trends);
+  };
+
+  const loadChapterPerformance = async () => {
+    const chaptersResponse: any = await (supabase as any)
+      .from("chapters")
+      .select("id, name")
+      .limit(10);
+
+    const chaptersData: any[] = chaptersResponse.data || [];
+    
+    const performance = await Promise.all(
+      chaptersData.map(async (chapter) => {
+        const assessmentsResponse: any = await (supabase as any)
+          .from("assessments")
+          .select("id, status")
+          .eq("chapter_id", chapter.id);
+
+        const assessments: any[] = assessmentsResponse.data || [];
+        const completed = assessments.filter(a => a.status === "completed").length;
+        const total = assessments.length;
+
+        return {
+          name: chapter.name.length > 20 ? chapter.name.substring(0, 20) + "..." : chapter.name,
+          assessments: total,
+          completed,
+          completionRate: total > 0 ? Math.round((completed / total) * 100) : 0
+        };
+      })
+    );
+
+    setChapterPerformance(performance.filter(p => p.assessments > 0));
   };
 
   const toggleChapter = (chapterId: string) => {
@@ -430,6 +515,65 @@ const SuperAdminDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{systemStats.avgCompletionRate}%</div>
             <p className="text-xs text-muted-foreground">Average across all</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Analytics Charts */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Assessment Trends (Last 30 Days)</CardTitle>
+            <CardDescription>
+              Daily assessment submissions and completion rates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trendsData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="total" 
+                  stroke="hsl(var(--primary))" 
+                  name="Total Submissions"
+                  strokeWidth={2}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="completed" 
+                  stroke="hsl(var(--chart-2))" 
+                  name="Completed"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Chapter Performance</CardTitle>
+            <CardDescription>
+              Completion rates by chapter
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chapterPerformance}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="assessments" fill="hsl(var(--primary))" name="Total" />
+                <Bar dataKey="completed" fill="hsl(var(--chart-2))" name="Completed" />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
