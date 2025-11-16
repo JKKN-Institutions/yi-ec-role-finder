@@ -30,12 +30,17 @@ const Admin = () => {
         return;
       }
 
-      // Check if user has admin role
-      const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-        _user_id: user.id,
-      });
+      // Check if user has any privileged role
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
 
-      if (!isAdmin) {
+      const privilegedRoles = ["admin", "super_admin", "chair", "co_chair", "em"];
+      const hasAccess = userRoles && privilegedRoles.includes(userRoles.role);
+
+      if (!hasAccess) {
         navigate("/access-denied");
         return;
       }
