@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_preferences: {
+        Row: {
+          created_at: string | null
+          dashboard_layout: Json | null
+          default_filters: Json | null
+          id: string
+          notification_preferences: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          dashboard_layout?: Json | null
+          default_filters?: Json | null
+          id?: string
+          notification_preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          dashboard_layout?: Json | null
+          default_filters?: Json | null
+          id?: string
+          notification_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       assessment_responses: {
         Row: {
           assessment_id: string
