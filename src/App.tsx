@@ -37,6 +37,7 @@ const App = () => (
           <Route path="/admin/tracking" element={<Admin />} />
           <Route path="/admin/verticals" element={<Admin />} />
           <Route path="/admin/roles" element={<Admin />} />
+          <Route path="/admin/activity-log" element={<Admin />} />
           <Route path="/admin/candidate/:assessmentId" element={<CandidateProfile />} />
           <Route path="/access-denied" element={<AccessDenied />} />
           <Route path="*" element={<NotFound />} />

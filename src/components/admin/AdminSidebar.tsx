@@ -9,7 +9,10 @@ import {
   Activity,
   Layers,
   UserCog,
+  FileText,
 } from "lucide-react";
+import { useRole } from "@/contexts/RoleContext";
+import { hasPermission } from "@/lib/roleHierarchy";
 import {
   Sidebar,
   SidebarContent,
@@ -23,19 +26,21 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  { title: "Overview", url: "/admin", icon: LayoutDashboard, end: true },
-  { title: "Candidates", url: "/admin/candidates", icon: Users },
-  { title: "Comparison", url: "/admin/comparison", icon: GitCompare },
-  { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
-  { title: "Validation", url: "/admin/validation", icon: CheckCircle },
-  { title: "Tracking", url: "/admin/tracking", icon: Activity },
-  { title: "Verticals", url: "/admin/verticals", icon: Layers },
-  { title: "User Roles", url: "/admin/roles", icon: UserCog },
+  { title: "Overview", url: "/admin", icon: LayoutDashboard, end: true, permission: null },
+  { title: "Candidates", url: "/admin/candidates", icon: Users, permission: "manage_candidates" },
+  { title: "Comparison", url: "/admin/comparison", icon: GitCompare, permission: "view_all_assessments" },
+  { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "view_all_assessments" },
+  { title: "Validation", url: "/admin/validation", icon: CheckCircle, permission: "view_all_assessments" },
+  { title: "Tracking", url: "/admin/tracking", icon: Activity, permission: "view_all_assessments" },
+  { title: "Verticals", url: "/admin/verticals", icon: Layers, permission: "manage_verticals" },
+  { title: "User Roles", url: "/admin/roles", icon: UserCog, permission: "manage_roles" },
+  { title: "Activity Log", url: "/admin/activity-log", icon: FileText, permission: "view_audit_logs" },
 ];
 
 export function AdminSidebar() {
   const { open } = useSidebar();
   const location = useLocation();
+  const { activeRole } = useRole();
 
   return (
     <Sidebar collapsible="icon">
@@ -45,6 +50,11 @@ export function AdminSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => {
+                // Check if user has permission to see this item
+                if (item.permission && activeRole && !hasPermission(activeRole, item.permission)) {
+                  return null;
+                }
+
                 const isActive = item.end 
                   ? location.pathname === item.url
                   : location.pathname.startsWith(item.url);
