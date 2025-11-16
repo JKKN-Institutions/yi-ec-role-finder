@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Plus, Edit, Trash2, Download, Info, Copy } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Download, Info, Copy, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -206,6 +206,27 @@ const AdminRoles = () => {
   const copyResetPassword = () => {
     navigator.clipboard.writeText(resetPassword);
     toast({ title: "Password copied to clipboard" });
+  };
+
+  const sendPasswordResetEmail = async (userEmail: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Password reset email sent", 
+        description: `A password reset link has been sent to ${userEmail}` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Error sending reset email", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
   };
 
   const resetUserPassword = async () => {
@@ -624,6 +645,15 @@ const AdminRoles = () => {
                   <TableCell>{format(new Date(user.created_at), "MMM dd, yyyy")}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => sendPasswordResetEmail(user.email)}
+                        title="Send password reset email"
+                      >
+                        <Mail className="h-4 w-4 mr-1" />
+                        Reset
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
                         <Edit className="h-4 w-4 mr-1" />
                         Manage
@@ -722,35 +752,63 @@ const AdminRoles = () => {
                   </div>
                 </div>
                 <div className="border-t pt-4">
-                  <Label>Reset Password</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Generate a new password for this user</p>
-                  <div className="flex gap-2">
-                    <Input 
-                      type="text" 
-                      value={resetPassword}
-                      onChange={(e) => setResetPassword(e.target.value)}
-                      placeholder="Click Generate to create password"
-                      className="font-mono"
-                    />
-                    <Button type="button" variant="outline" onClick={generateResetPassword}>
-                      Generate
+                  <Label>Password Management</Label>
+                  <p className="text-xs text-muted-foreground mb-3">Choose how to reset the user's password</p>
+                  
+                  <div className="mb-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => sendPasswordResetEmail(editingUser.email)}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Send Password Reset Email
                     </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      User will receive an email with a secure reset link
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">Or set manually</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-xs text-muted-foreground mb-2">Generate and set a new password directly</p>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="text" 
+                        value={resetPassword}
+                        onChange={(e) => setResetPassword(e.target.value)}
+                        placeholder="Click Generate to create password"
+                        className="font-mono"
+                      />
+                      <Button type="button" variant="outline" onClick={generateResetPassword}>
+                        Generate
+                      </Button>
+                      {resetPassword && (
+                        <>
+                          <Button type="button" variant="outline" onClick={copyResetPassword} size="icon">
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" onClick={resetUserPassword}>
+                            Reset
+                          </Button>
+                        </>
+                      )}
+                    </div>
                     {resetPassword && (
-                      <>
-                        <Button type="button" variant="outline" onClick={copyResetPassword} size="icon">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" onClick={resetUserPassword}>
-                          Reset
-                        </Button>
-                      </>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Click Reset to update the password, then share it with the user.
+                      </p>
                     )}
                   </div>
-                  {resetPassword && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Click Reset to update the password, then share it with the user.
-                    </p>
-                  )}
                 </div>
               </div>
               <DialogFooter className="mt-4">

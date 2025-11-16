@@ -1,3 +1,4 @@
+import { TestDataSeeder } from "@/components/admin/TestDataSeeder";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -425,6 +426,9 @@ const SuperAdminDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Test Data Seeder */}
+      <TestDataSeeder />
     </div>
   );
 };
