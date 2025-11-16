@@ -18,6 +18,7 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
   const { chapterId, setChapterId, isSuperAdmin } = useChapterContext();
+  const [userChapters, setUserChapters] = useState<any[]>([]);
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -43,11 +44,21 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
           };
           setUserRole(roleLabels[roles.role] || roles.role);
         }
+
+        // Load user's chapters if not super admin
+        if (!isSuperAdmin) {
+          const { data: chapters } = await (supabase.rpc as any)("get_user_chapters", {
+            _user_id: user.id
+          });
+          if (chapters) {
+            setUserChapters(chapters);
+          }
+        }
       }
     };
 
     loadUserInfo();
-  }, []);
+  }, [isSuperAdmin]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -70,7 +81,17 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-4">
-        <ChapterSelector value={chapterId} onChange={setChapterId} />
+        {/* Show chapter selector for admins with multiple chapters */}
+        {(isSuperAdmin || userChapters.length > 1) && (
+          <ChapterSelector value={chapterId} onChange={setChapterId} />
+        )}
+        
+        {/* Show current chapter name for admins with single chapter */}
+        {!isSuperAdmin && userChapters.length === 1 && (
+          <Badge variant="outline" className="text-sm px-3 py-1">
+            {userChapters[0].chapter_name}
+          </Badge>
+        )}
         
         <div className="text-right">
           <p className="text-sm font-medium">{userName}</p>
