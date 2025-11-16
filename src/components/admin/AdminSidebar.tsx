@@ -14,6 +14,7 @@ import {
   UserCog,
   Shield,
   Bell,
+  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const navigationItems = [
   { title: "Verticals", url: "/admin/verticals", icon: Layers },
   { title: "User Roles", url: "/admin/roles", icon: UserCog },
   { title: "Audit Log", url: "/admin/audit", icon: Shield },
+  { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
 export function AdminSidebar() {
