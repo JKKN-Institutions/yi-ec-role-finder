@@ -174,6 +174,7 @@ export type Database = {
       assessments: {
         Row: {
           admin_notes: string | null
+          chapter_id: string | null
           completed_at: string | null
           created_at: string
           current_question: number
@@ -189,6 +190,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          chapter_id?: string | null
           completed_at?: string | null
           created_at?: string
           current_question?: number
@@ -204,6 +206,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          chapter_id?: string | null
           completed_at?: string | null
           created_at?: string
           current_question?: number
@@ -217,7 +220,15 @@ export type Database = {
           user_email?: string
           user_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assessments_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       candidate_feedback: {
         Row: {
@@ -297,6 +308,39 @@ export type Database = {
           },
         ]
       }
+      chapters: {
+        Row: {
+          chapter_type: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          chapter_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          chapter_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -350,24 +394,35 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          chapter_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          chapter_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          chapter_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       validation_metrics: {
         Row: {
