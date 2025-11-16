@@ -28,24 +28,46 @@ import { format, parseISO, startOfWeek, subDays } from "date-fns";
 
 const COLORS = ["#22c55e", "#3b82f6", "#ef4444", "#eab308"];
 
+import { useChapterContext } from "./Admin";
+
 const AdminAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
   const [responses, setResponses] = useState<any[]>([]);
   const { toast } = useToast();
+  const { chapterId, isSuperAdmin } = useChapterContext();
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [chapterId]);
 
   const loadData = async () => {
     setLoading(true);
     try {
+      // Build queries with chapter filter
+      let assessmentsQuery = supabase
+        .from("assessments" as any)
+        .select("*")
+        .eq("status", "completed");
+
+      if (!isSuperAdmin || (chapterId && chapterId !== "all")) {
+        assessmentsQuery = assessmentsQuery.eq("chapter_id", chapterId);
+      }
+
+      let resultsQuery = supabase.from("assessment_results" as any).select("*");
+      let responsesQuery = supabase.from("assessment_responses" as any).select("*");
+
+      // Filter results and responses by chapter
+      if (!isSuperAdmin || (chapterId && chapterId !== "all")) {
+        resultsQuery = resultsQuery.eq("chapter_id", chapterId);
+        responsesQuery = responsesQuery.eq("chapter_id", chapterId);
+      }
+
       const [assessmentsRes, resultsRes, responsesRes] = await Promise.all([
-        supabase.from("assessments").select("*").eq("status", "completed"),
-        supabase.from("assessment_results").select("*"),
-        supabase.from("assessment_responses").select("*"),
+        assessmentsQuery,
+        resultsQuery,
+        responsesQuery,
       ]);
 
       if (assessmentsRes.error) throw assessmentsRes.error;

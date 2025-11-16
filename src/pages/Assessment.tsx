@@ -43,7 +43,7 @@ type QuestionResponse = {
   [key: string]: string;
 };
 
-const questionDefinitions = [
+const defaultQuestions = [
   {
     number: 1,
     title: "Which verticals interest you most?",
@@ -120,6 +120,8 @@ const Assessment = () => {
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [validationError, setValidationError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [questionDefinitions, setQuestionDefinitions] = useState(defaultQuestions);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [expandedDescriptions, setExpandedDescriptions] = useState<{
     priority1: boolean;
     priority2: boolean;
@@ -129,10 +131,11 @@ const Assessment = () => {
   useEffect(() => {
     const loadAssessment = async () => {
       if (!id) return;
+      setLoadingQuestions(true);
 
       const { data: assessment } = await supabase
         .from("assessments")
-        .select("*")
+        .select("*, chapters(chapter_type)")
         .eq("id", id)
         .single();
 
@@ -148,6 +151,23 @@ const Assessment = () => {
         return;
       }
 
+      // Load assessment template based on chapter type
+      const chapterType = (assessment as any).chapters?.chapter_type || 'regular';
+      const { data: template } = await supabase
+        .from("assessment_templates" as any)
+        .select("questions")
+        .eq("chapter_type", chapterType)
+        .maybeSingle();
+
+      const templateData = template as any;
+      if (templateData && Array.isArray(templateData.questions) && templateData.questions.length > 0) {
+        setQuestionDefinitions(templateData.questions);
+      } else {
+        console.warn(`No template found for ${chapterType}, using defaults`);
+        setQuestionDefinitions(defaultQuestions);
+      }
+
+      setLoadingQuestions(false);
       setCurrentQuestion(assessment.current_question);
 
       const { data: savedResponses } = await supabase
