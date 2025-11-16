@@ -11,6 +11,7 @@ import Assessment from "./pages/Assessment";
 import Results from "./pages/Results";
 import ThankYou from "./pages/ThankYou";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
 import Admin from "./pages/Admin";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/thank-you" element={<ThankYou />} />
             <Route path="/results/:id" element={<Results />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/candidates" element={<Admin />} />
             <Route path="/admin/comparison" element={<Admin />} />
