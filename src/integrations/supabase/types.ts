@@ -311,35 +311,58 @@ export type Database = {
       chapters: {
         Row: {
           chapter_type: string | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string | null
           description: string | null
+          display_order: number | null
           id: string
           is_active: boolean | null
+          location: string | null
           name: string
+          parent_chapter_id: string | null
           slug: string
           updated_at: string | null
         }
         Insert: {
           chapter_type?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           description?: string | null
+          display_order?: number | null
           id?: string
           is_active?: boolean | null
+          location?: string | null
           name: string
+          parent_chapter_id?: string | null
           slug: string
           updated_at?: string | null
         }
         Update: {
           chapter_type?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           description?: string | null
+          display_order?: number | null
           id?: string
           is_active?: boolean | null
+          location?: string | null
           name?: string
+          parent_chapter_id?: string | null
           slug?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chapters_parent_chapter_id_fkey"
+            columns: ["parent_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
