@@ -49,6 +49,45 @@ const SuperAdminDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
+
+    // Set up real-time subscription for new assessments
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'assessments'
+        },
+        (payload) => {
+          console.log('New assessment created:', payload);
+          // Reload dashboard data when new assessment is created
+          loadDashboardData();
+          toast({
+            title: "New Assessment",
+            description: "A new assessment has been submitted",
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'assessments'
+        },
+        (payload) => {
+          console.log('Assessment updated:', payload);
+          // Reload when assessment status changes
+          loadDashboardData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadDashboardData = async () => {
@@ -94,28 +133,29 @@ const SuperAdminDashboard = () => {
     setChapterStats(statsMap);
   };
 
-  const loadChapterStats = async (chapterId: string) => {
+  const loadChapterStats = async (chapterId: string): Promise<ChapterStats | null> => {
     try {
-      const assessmentQuery = await supabase
+      // Use explicit type annotations to avoid deep type instantiation
+      const assessmentResponse: any = await (supabase as any)
         .from("assessments")
         .select("id, review_status, is_shortlisted")
         .eq("chapter_id", chapterId);
 
-      const adminsQuery = await supabase
-        .from("user_roles" as any)
+      const adminResponse: any = await (supabase as any)
+        .from("user_roles")
         .select("id")
         .eq("chapter_id", chapterId);
 
-      const reviews = assessmentQuery.data || [];
-      const pendingReviews = reviews.filter((a: any) => a.review_status === "new").length;
-      const shortlisted = reviews.filter((a: any) => a.is_shortlisted).length;
+      const assessments: any[] = assessmentResponse.data || [];
+      const pendingReviews = assessments.filter(a => a.review_status === "new").length;
+      const shortlisted = assessments.filter(a => a.is_shortlisted).length;
 
       return {
         chapterId,
-        totalAssessments: reviews.length,
+        totalAssessments: assessments.length,
         pendingReviews,
         shortlisted,
-        admins: adminsQuery.data?.length || 0
+        admins: adminResponse.data?.length || 0
       };
     } catch (error) {
       console.error(`Error loading stats for chapter ${chapterId}:`, error);
@@ -124,7 +164,7 @@ const SuperAdminDashboard = () => {
   };
 
   const loadRecentActivity = async () => {
-    const { data, error } = await supabase
+    const response: any = await (supabase as any)
       .from("assessments")
       .select(`
         id,
@@ -137,19 +177,27 @@ const SuperAdminDashboard = () => {
       .order("created_at", { ascending: false })
       .limit(10);
 
+    const { data, error } = response;
     if (error) throw error;
 
     // Get chapter names
-    const assessmentData = (data as any) || [];
-    const chapterIds = [...new Set(assessmentData.map((a: any) => a.chapter_id))];
-    const { data: chapterData } = await supabase
-      .from("chapters" as any)
+    const assessmentData: any[] = data || [];
+    const chapterIds = [...new Set(assessmentData.map(a => a.chapter_id))];
+    
+    if (chapterIds.length === 0) {
+      setRecentActivity([]);
+      return;
+    }
+
+    const chapterResponse: any = await (supabase as any)
+      .from("chapters")
       .select("id, name")
       .in("id", chapterIds);
 
-    const chapterMap = new Map((chapterData as any || []).map((c: any) => [c.id, c.name]));
+    const chapterData: any[] = chapterResponse.data || [];
+    const chapterMap = new Map(chapterData.map(c => [c.id, c.name]));
 
-    const activities = assessmentData.map((a: any) => ({
+    const activities: RecentActivity[] = assessmentData.map(a => ({
       id: a.id,
       chapter_name: chapterMap.get(a.chapter_id) || "Unknown",
       user_name: a.user_name,
@@ -162,23 +210,22 @@ const SuperAdminDashboard = () => {
   };
 
   const loadSystemStats = async () => {
-    const [assessments, chapters] = await Promise.all([
-      supabase
-        .from("assessments")
-        .select("id, status", { count: "exact" }),
-      supabase
-        .from("chapters" as any)
-        .select("id", { count: "exact" })
-    ]);
+    const assessmentsResponse: any = await (supabase as any)
+      .from("assessments")
+      .select("id, status");
 
-    const assessmentData = assessments.data || [];
-    const completed = assessmentData.filter((a: any) => a.status === "completed").length;
-    const total = assessments.count || 0;
+    const chaptersResponse: any = await (supabase as any)
+      .from("chapters")
+      .select("id");
+
+    const assessmentData: any[] = assessmentsResponse.data || [];
+    const completed = assessmentData.filter(a => a.status === "completed").length;
+    const total = assessmentData.length;
 
     setSystemStats({
       totalAssessments: total,
       totalCandidates: total,
-      totalChapters: chapters.count || 0,
+      totalChapters: chaptersResponse.data?.length || 0,
       avgCompletionRate: total > 0 ? Math.round((completed / total) * 100) : 0
     });
   };
