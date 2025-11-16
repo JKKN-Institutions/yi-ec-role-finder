@@ -550,6 +550,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_by_email: {
+        Args: { user_email: string }
+        Returns: {
+          email: string
+          id: string
+        }[]
+      }
       get_user_chapters: {
         Args: { _user_id: string }
         Returns: {

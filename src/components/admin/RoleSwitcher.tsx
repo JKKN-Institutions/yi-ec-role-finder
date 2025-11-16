@@ -9,13 +9,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, Shield } from "lucide-react";
+import { ChevronDown, Shield, AlertTriangle } from "lucide-react";
 import { ROLE_LABELS, ROLE_HIERARCHY } from "@/lib/roleHierarchy";
 
 export function RoleSwitcher() {
-  const { activeRole, availableRoles, switchRole } = useRole();
+  const { activeRole, availableRoles, isSuperAdmin, switchRole } = useRole();
 
-  if (availableRoles.length <= 1) {
+  if (!isSuperAdmin && availableRoles.length <= 1) {
     return null;
   }
 
@@ -24,17 +24,31 @@ export function RoleSwitcher() {
     (a, b) => ROLE_HIERARCHY[b] - ROLE_HIERARCHY[a]
   );
 
+  // Check if currently impersonating
+  const userActualRoles = availableRoles.filter(role => 
+    !isSuperAdmin || role === "super_admin"
+  );
+  const isImpersonating = isSuperAdmin && activeRole && activeRole !== "super_admin";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button 
+          variant={isImpersonating ? "destructive" : "outline"} 
+          size="sm" 
+          className="gap-2"
+        >
+          {isImpersonating && <AlertTriangle className="h-4 w-4" />}
           <Shield className="h-4 w-4" />
           {activeRole && ROLE_LABELS[activeRole]}
+          {isImpersonating && <Badge variant="secondary" className="ml-1 text-xs">Impersonating</Badge>}
           <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Switch Role</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          {isSuperAdmin ? "Switch/Impersonate Role" : "Switch Role"}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {sortedRoles.map((role) => (
           <DropdownMenuItem
@@ -43,11 +57,18 @@ export function RoleSwitcher() {
             className="flex items-center justify-between"
           >
             <span>{ROLE_LABELS[role]}</span>
-            {role === activeRole && (
-              <Badge variant="secondary" className="ml-2">
-                Active
-              </Badge>
-            )}
+            <div className="flex gap-1">
+              {role === activeRole && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  Active
+                </Badge>
+              )}
+              {isSuperAdmin && !userActualRoles.includes(role) && (
+                <Badge variant="outline" className="ml-2 text-xs text-orange-500">
+                  Impersonate
+                </Badge>
+              )}
+            </div>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

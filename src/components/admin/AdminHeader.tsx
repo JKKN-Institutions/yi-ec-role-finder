@@ -7,6 +7,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { LogOut, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { RoleSwitcher } from "./RoleSwitcher";
+import { UserImpersonation } from "./UserImpersonation";
 import { useRole } from "@/contexts/RoleContext";
 import { ROLE_LABELS } from "@/lib/roleHierarchy";
 
@@ -17,7 +18,7 @@ interface AdminHeaderProps {
 export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
-  const { activeRole } = useRole();
+  const { activeRole, isSuperAdmin } = useRole();
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -63,6 +64,7 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
 
       <div className="ml-auto flex items-center gap-4">
         <RoleSwitcher />
+        {isSuperAdmin && <UserImpersonation />}
         
         <div className="text-right">
           <p className="text-sm font-medium">{userName}</p>
