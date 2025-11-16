@@ -55,13 +55,19 @@ type UserWithRoles = {
 };
 
 const ROLE_COLORS: { [key: string]: string } = {
+  super_admin: "bg-red-600",
   admin: "bg-red-500",
   chair: "bg-blue-500",
   co_chair: "bg-purple-500",
   em: "bg-green-500",
+  user: "bg-gray-500",
 };
 
 const ROLE_DESCRIPTIONS = {
+  super_admin: {
+    title: "Super Admin",
+    description: "Ultimate system access. Can manage all users, roles, chapters, and system settings. Can impersonate any role.",
+  },
   admin: {
     title: "Admin",
     description: "Full system access. Can manage users, verticals, all candidates, export data, and modify settings.",
@@ -77,6 +83,10 @@ const ROLE_DESCRIPTIONS = {
   em: {
     title: "EM (Executive Member)",
     description: "Dashboard view access. Can view candidates and analytics. Read-only access, cannot modify data or settings.",
+  },
+  user: {
+    title: "User",
+    description: "Basic access. Can take assessments and view own results.",
   },
 };
 
