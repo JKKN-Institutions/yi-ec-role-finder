@@ -16,6 +16,7 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -32,10 +33,20 @@ export const Navbar = () => {
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (user) {
+        // Check super admin first
+        const { data: superAdminData } = await (supabase.rpc as any)('is_super_admin', { _user_id: user.id });
+        if (superAdminData) {
+          setIsSuperAdmin(true);
+          setIsAdmin(true);
+          return;
+        }
+
+        // Check regular admin
         const { data } = await supabase.rpc('is_admin_user', { _user_id: user.id });
         setIsAdmin(data || false);
       } else {
         setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
     };
     checkAdminStatus();
@@ -79,10 +90,16 @@ export const Navbar = () => {
                 <DropdownMenuItem disabled className="text-xs text-muted-foreground">
                   {user.email}
                 </DropdownMenuItem>
-                {isAdmin && (
+                {isSuperAdmin && (
+                  <DropdownMenuItem onClick={() => navigate("/super-admin")}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Super Admin Dashboard
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && !isSuperAdmin && (
                   <DropdownMenuItem onClick={() => navigate("/admin")}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Dashboard
+                    Admin Dashboard
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={handleSignOut}>
