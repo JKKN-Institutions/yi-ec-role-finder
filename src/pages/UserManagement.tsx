@@ -63,7 +63,8 @@ const UserManagement = () => {
   const { activeRole, isSuperAdmin, isLoading: roleLoading } = useRole();
 
   useEffect(() => {
-    if (!roleLoading && activeRole !== "super_admin" && !isSuperAdmin) {
+    // Check permissions - only check activeRole to respect impersonation
+    if (!roleLoading && activeRole !== "super_admin") {
       toast({
         title: "Access Denied",
         description: "Only Super Admins can access user management",
@@ -71,10 +72,11 @@ const UserManagement = () => {
       });
       navigate("/admin");
     }
-  }, [activeRole, isSuperAdmin, roleLoading, navigate, toast]);
+  }, [activeRole, roleLoading, navigate, toast]);
 
   useEffect(() => {
-    if (activeRole === "super_admin" || isSuperAdmin) {
+    // Only load data if actively viewing as super_admin (respects impersonation)
+    if (activeRole === "super_admin") {
       loadUsers();
 
       // Subscribe to realtime updates
@@ -108,7 +110,7 @@ const UserManagement = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [activeRole, isSuperAdmin]);
+  }, [activeRole]);
 
   const loadUsers = async () => {
     try {
@@ -229,7 +231,7 @@ const UserManagement = () => {
     );
   }
 
-  if (activeRole !== "super_admin" && !isSuperAdmin) {
+  if (activeRole !== "super_admin") {
     return null;
   }
 
