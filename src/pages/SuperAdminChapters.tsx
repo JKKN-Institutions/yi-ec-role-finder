@@ -24,6 +24,10 @@ interface Chapter {
   contact_phone: string | null;
   is_active: boolean;
   display_order: number;
+  logo_url?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
+  welcome_message?: string | null;
 }
 
 interface SuperAdminChaptersProps {
@@ -46,7 +50,11 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
     contact_email: "",
     contact_phone: "",
     is_active: true,
-    display_order: 0
+    display_order: 0,
+    logo_url: "",
+    primary_color: "",
+    secondary_color: "",
+    welcome_message: ""
   });
 
   useEffect(() => {
@@ -102,7 +110,11 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
       contact_email: "",
       contact_phone: "",
       is_active: true,
-      display_order: chapters.length
+      display_order: chapters.length,
+      logo_url: "",
+      primary_color: "",
+      secondary_color: "",
+      welcome_message: ""
     });
     setDialogOpen(true);
   };
@@ -119,7 +131,11 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
       contact_email: chapter.contact_email || "",
       contact_phone: chapter.contact_phone || "",
       is_active: chapter.is_active,
-      display_order: chapter.display_order
+      display_order: chapter.display_order,
+      logo_url: chapter.logo_url || "",
+      primary_color: chapter.primary_color || "",
+      secondary_color: chapter.secondary_color || "",
+      welcome_message: chapter.welcome_message || ""
     });
     setDialogOpen(true);
   };
@@ -481,6 +497,52 @@ const SuperAdminChapters = ({ onUpdate }: SuperAdminChaptersProps) => {
                   value={formData.contact_phone}
                   onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
                   placeholder="+91 1234567890"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-sm font-semibold">Branding & Customization</h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="logo_url">Logo URL</Label>
+                <Input
+                  id="logo_url"
+                  value={formData.logo_url}
+                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                  placeholder="https://example.com/logo.png"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="primary_color">Primary Color</Label>
+                  <Input
+                    id="primary_color"
+                    value={formData.primary_color}
+                    onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                    placeholder="#3B82F6"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="secondary_color">Secondary Color</Label>
+                  <Input
+                    id="secondary_color"
+                    value={formData.secondary_color}
+                    onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                    placeholder="#10B981"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="welcome_message">Welcome Message</Label>
+                <Textarea
+                  id="welcome_message"
+                  value={formData.welcome_message}
+                  onChange={(e) => setFormData({ ...formData, welcome_message: e.target.value })}
+                  placeholder="Welcome! We're excited to help you discover your leadership potential..."
+                  rows={3}
                 />
               </div>
             </div>
