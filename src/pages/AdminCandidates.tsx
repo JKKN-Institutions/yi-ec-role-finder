@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Search, Eye, Filter } from "lucide-react";
+import { Loader2, Search, Eye, Filter, RefreshCw, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -30,6 +30,7 @@ const AdminCandidates = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
+  const [reanalyzing, setReanalyzing] = useState<string | null>(null);
 
   useEffect(() => {
     loadCandidates();
@@ -66,6 +67,30 @@ const AdminCandidates = () => {
       console.error("Error loading candidates:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reanalyzeAssessment = async (assessmentId: string) => {
+    setReanalyzing(assessmentId);
+    try {
+      const { error } = await supabase.functions.invoke("analyze-assessment", {
+        body: { assessmentId },
+      });
+
+      if (error) throw error;
+
+      // Reload candidates to get updated scores
+      await loadCandidates();
+      
+      const candidate = candidates.find(c => c.id === assessmentId);
+      if (candidate) {
+        // Show toast with link to comparison page
+        console.log(`Re-analyzed ${candidate.user_name}`);
+      }
+    } catch (error: any) {
+      console.error("Error re-analyzing:", error);
+    } finally {
+      setReanalyzing(null);
     }
   };
 
@@ -117,9 +142,15 @@ const AdminCandidates = () => {
           <h1 className="text-3xl font-bold">Candidates</h1>
           <p className="text-muted-foreground">View and manage all assessment candidates</p>
         </div>
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          {filteredCandidates.length} Total
-        </Badge>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate("/admin/score-comparison")} variant="outline">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Score Comparison
+          </Button>
+          <Badge variant="outline" className="text-lg px-4 py-2">
+            {filteredCandidates.length} Total
+          </Badge>
+        </div>
       </div>
 
       <Card>
@@ -217,14 +248,36 @@ const AdminCandidates = () => {
                       {format(new Date(candidate.created_at), "MMM dd, yyyy")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/admin/candidate/${candidate.id}`)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
+                      <div className="flex gap-2 justify-end">
+                        {candidate.status === "completed" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => reanalyzeAssessment(candidate.id)}
+                            disabled={reanalyzing === candidate.id}
+                          >
+                            {reanalyzing === candidate.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Analyzing...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Re-analyze
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/admin/candidate/${candidate.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

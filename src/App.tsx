@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
 import Admin from "./pages/Admin";
 import CandidateProfile from "./pages/CandidateProfile";
+import AdminScoreComparison from "./pages/AdminScoreComparison";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/admin/verticals" element={<Admin />} />
           <Route path="/admin/roles" element={<Admin />} />
           <Route path="/admin/activity-log" element={<Admin />} />
+          <Route path="/admin/score-comparison" element={<AdminScoreComparison />} />
           <Route path="/admin/candidate/:assessmentId" element={<CandidateProfile />} />
           <Route path="/access-denied" element={<AccessDenied />} />
           <Route path="*" element={<NotFound />} />
