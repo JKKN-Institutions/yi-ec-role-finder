@@ -40,6 +40,39 @@ const AdminAnalytics = () => {
 
   useEffect(() => {
     loadData();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('analytics-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'assessments'
+        },
+        () => {
+          console.log('Assessment data changed, reloading analytics');
+          loadData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'assessment_results'
+        },
+        () => {
+          console.log('Results changed, reloading analytics');
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [chapterId]);
 
   const loadData = async () => {

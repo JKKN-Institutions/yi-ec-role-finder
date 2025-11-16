@@ -39,6 +39,27 @@ const AdminCandidates = () => {
 
   useEffect(() => {
     loadCandidates();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('candidates-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'assessments'
+        },
+        (payload) => {
+          console.log('Assessment changed:', payload);
+          loadCandidates();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [chapterId]);
 
   const loadCandidates = async () => {
@@ -131,6 +152,24 @@ const AdminCandidates = () => {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Log the action
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const candidate = candidates.find(c => c.id === id);
+        await (supabase as any).rpc("log_admin_action", {
+          _admin_user_id: user.id,
+          _admin_email: user.email,
+          _action_type: "assessment_shortlisted",
+          _target_type: "assessment",
+          _target_id: id,
+          _details: {
+            candidate_name: candidate?.user_name,
+            candidate_email: candidate?.user_email,
+            shortlisted: !currentStatus
+          }
+        });
+      }
 
       await loadCandidates();
       toast({
