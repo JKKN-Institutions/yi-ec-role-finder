@@ -33,6 +33,7 @@ import {
 import { ArrowLeft, Star, Download, Trash2, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ScoringBreakdown } from "@/components/admin/ScoringBreakdown";
 
 interface CandidateData {
   id: string;
@@ -573,6 +574,13 @@ const CandidateProfile = () => {
           <div className="space-y-6">
             {candidate.results && (
               <>
+                {/* Scoring Breakdown - NEW */}
+                <ScoringBreakdown
+                  willScore={candidate.results.will_score}
+                  skillScore={candidate.results.skill_score}
+                  scoringBreakdown={candidate.results.scoring_breakdown || {}}
+                />
+
                 {/* Key Insights */}
                 <Card className="p-6">
                   <h3 className="text-lg font-semibold mb-4">Key Insights</h3>
