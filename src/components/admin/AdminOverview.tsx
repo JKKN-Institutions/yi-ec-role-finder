@@ -15,6 +15,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { ActiveAdminsWidget } from "./ActiveAdminsWidget";
 
 interface Stats {
   totalAssessments: number;
@@ -287,6 +288,9 @@ export function AdminOverview() {
           </div>
         </Card>
       </div>
+
+      {/* Real-time Active Admins and Recent Actions */}
+      <ActiveAdminsWidget />
 
       {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2">
