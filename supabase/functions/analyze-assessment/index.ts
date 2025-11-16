@@ -42,7 +42,7 @@ serve(async (req) => {
     // 1. FETCH DATA
     const { data: assessment } = await supabase
       .from("assessments")
-      .select("*")
+      .select("*, chapters(chapter_type)")
       .eq("id", assessmentId)
       .single();
 
@@ -50,14 +50,31 @@ serve(async (req) => {
       throw new Error("Assessment not found");
     }
 
+    // Fetch assessment template based on chapter type
+    const chapterType = (assessment as any).chapters?.chapter_type || 'regular';
+    const { data: template } = await supabase
+      .from("assessment_templates")
+      .select("questions")
+      .eq("chapter_type", chapterType)
+      .single();
+
+    if (!template) {
+      console.warn(`No template found for chapter type: ${chapterType}, using default`);
+    }
+
+    const templateQuestions = template?.questions || [];
+    const questionCount = Array.isArray(templateQuestions) && templateQuestions.length > 0 
+      ? templateQuestions.length 
+      : 5;
+
     const { data: responses } = await supabase
       .from("assessment_responses")
       .select("*")
       .eq("assessment_id", assessmentId)
       .order("question_number");
 
-    if (!responses || responses.length !== 5) {
-      throw new Error("All 5 responses required for analysis");
+    if (!responses || responses.length !== questionCount) {
+      throw new Error(`All ${questionCount} responses required for analysis`);
     }
 
     const responseMap: Record<number, AssessmentResponse> = {};

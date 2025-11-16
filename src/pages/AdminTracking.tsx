@@ -72,6 +72,8 @@ type FeedbackRecord = {
   vertical?: any;
 };
 
+import { useChapterContext } from "./Admin";
+
 const AdminTracking = () => {
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
@@ -84,24 +86,34 @@ const AdminTracking = () => {
   const [accuracyFilter, setAccuracyFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
   const { toast } = useToast();
+  const { chapterId, isSuperAdmin } = useChapterContext();
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [chapterId]);
 
   const loadData = async () => {
     setLoading(true);
     try {
+      let feedbackQuery = supabase
+        .from("candidate_feedback" as any)
+        .select("*, assessments(*), verticals(*)");
+      
+      let assessmentsQuery = supabase
+        .from("assessments" as any)
+        .select("*, assessment_results(*)")
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false });
+
+      if (!isSuperAdmin || (chapterId && chapterId !== "all")) {
+        feedbackQuery = feedbackQuery.eq("chapter_id", chapterId);
+        assessmentsQuery = assessmentsQuery.eq("chapter_id", chapterId);
+      }
+
       const [feedbackRes, assessmentsRes, verticalsRes] = await Promise.all([
-        supabase
-          .from("candidate_feedback")
-          .select("*, assessments(*), verticals(*)"),
-        supabase
-          .from("assessments")
-          .select("*, assessment_results(*)")
-          .eq("status", "completed")
-          .order("completed_at", { ascending: false }),
-        supabase.from("verticals").select("*").eq("is_active", true),
+        feedbackQuery,
+        assessmentsQuery,
+        supabase.from("verticals" as any).select("*").eq("is_active", true),
       ]);
 
       if (feedbackRes.error) throw feedbackRes.error;

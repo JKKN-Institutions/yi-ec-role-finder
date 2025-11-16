@@ -47,6 +47,8 @@ const QUADRANT_COLORS: { [key: string]: string } = {
   Q4: "bg-yellow-500",
 };
 
+import { useChapterContext } from "./Admin";
+
 const AdminComparison = () => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<CandidateData[]>([]);
@@ -56,21 +58,27 @@ const AdminComparison = () => {
   const [aiReport, setAiReport] = useState<ComparisonReport | null>(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const { toast } = useToast();
+  const { chapterId, isSuperAdmin } = useChapterContext();
 
   useEffect(() => {
     loadCandidates();
-  }, []);
+  }, [chapterId]);
 
   const loadCandidates = async () => {
     setLoading(true);
-    const { data: assessments, error } = await supabase
-      .from("assessments")
+    let query = supabase
+      .from("assessments" as any)
       .select(`
         *,
         assessment_results (*)
       `)
-      .eq("status", "completed")
-      .order("completed_at", { ascending: false });
+      .eq("status", "completed");
+
+    if (!isSuperAdmin || (chapterId && chapterId !== "all")) {
+      query = query.eq("chapter_id", chapterId);
+    }
+
+    const { data: assessments, error } = await query.order("completed_at", { ascending: false });
 
     if (error) {
       toast({ title: "Error loading candidates", description: error.message, variant: "destructive" });

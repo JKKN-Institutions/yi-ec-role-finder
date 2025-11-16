@@ -23,8 +23,11 @@ interface Candidate {
   quadrant?: string;
 }
 
+import { useChapterContext } from "./Admin";
+
 const AdminCandidates = () => {
   const navigate = useNavigate();
+  const { chapterId, isSuperAdmin } = useChapterContext();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,18 +36,24 @@ const AdminCandidates = () => {
 
   useEffect(() => {
     loadCandidates();
-  }, []);
+  }, [chapterId]);
 
   const loadCandidates = async () => {
     setLoading(true);
     try {
-      const { data: assessments, error } = await supabase
-        .from("assessments")
+      let query = supabase
+        .from("assessments" as any)
         .select(`
           *,
           assessment_results(recommended_role, quadrant)
-        `)
-        .order("created_at", { ascending: false });
+        `);
+
+      // Filter by chapter if not super admin viewing all
+      if (!isSuperAdmin || (chapterId && chapterId !== "all")) {
+        query = query.eq("chapter_id", chapterId);
+      }
+
+      const { data: assessments, error } = await query.order("created_at", { ascending: false });
 
       if (error) throw error;
 
