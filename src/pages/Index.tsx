@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -22,6 +22,30 @@ const Index = () => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const { data: userRoles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id);
+
+        if (userRoles && userRoles.length > 0) {
+          const roles = userRoles.map(r => r.role);
+          const privilegedRoles = ["admin", "chair", "co_chair", "em", "super_admin"];
+          
+          if (roles.some(role => privilegedRoles.includes(role))) {
+            navigate("/admin");
+          }
+        }
+      }
+    };
+
+    checkUserRole();
+  }, [navigate]);
 
   const handleStartAssessment = async () => {
     try {
