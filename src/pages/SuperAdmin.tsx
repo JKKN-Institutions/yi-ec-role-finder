@@ -7,6 +7,8 @@ import { Building2, Users, BarChart3, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SuperAdminChapters from "./SuperAdminChapters";
 import SuperAdminTemplates from "./SuperAdminTemplates";
+import SuperAdminDashboard from "./SuperAdminDashboard";
+import AdminUserManagement from "./AdminUserManagement";
 
 const SuperAdmin = () => {
   const navigate = useNavigate();
@@ -97,12 +99,17 @@ const SuperAdmin = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="chapters">Chapters</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="users">User Management</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dashboard">
+            <SuperAdminDashboard />
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -192,6 +199,10 @@ const SuperAdmin = () => {
 
           <TabsContent value="templates">
             <SuperAdminTemplates />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <AdminUserManagement />
           </TabsContent>
         </Tabs>
       </div>

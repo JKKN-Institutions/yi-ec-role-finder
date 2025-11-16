@@ -9,6 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Search, Eye, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { exportToCSV, formatAssessmentsForExport } from "@/lib/export";
+import { Download } from "lucide-react";
+import { useChapterContext } from "./Admin";
 
 interface Candidate {
   id: string;
@@ -23,11 +27,10 @@ interface Candidate {
   quadrant?: string;
 }
 
-import { useChapterContext } from "./Admin";
-
 const AdminCandidates = () => {
   const navigate = useNavigate();
   const { chapterId, isSuperAdmin } = useChapterContext();
+  const { toast } = useToast();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -111,6 +114,38 @@ const AdminCandidates = () => {
     return matchesSearch && matchesStatus && matchesReview;
   });
 
+  const handleExport = () => {
+    const exportData = formatAssessmentsForExport(filteredCandidates);
+    exportToCSV(exportData, `candidates-${chapterId}-${new Date().toISOString().split('T')[0]}`);
+    toast({
+      title: "Export Successful",
+      description: "Candidate data has been exported to CSV"
+    });
+  };
+
+  const handleShortlist = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("assessments")
+        .update({ is_shortlisted: !currentStatus })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      await loadCandidates();
+      toast({
+        title: "Success",
+        description: `Candidate ${!currentStatus ? "shortlisted" : "removed from shortlist"}`
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -126,9 +161,15 @@ const AdminCandidates = () => {
           <h1 className="text-3xl font-bold">Candidates</h1>
           <p className="text-muted-foreground">View and manage all assessment candidates</p>
         </div>
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          {filteredCandidates.length} Total
-        </Badge>
+        <div className="flex gap-2 items-center">
+          <Button onClick={handleExport} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Badge variant="outline" className="text-lg px-4 py-2">
+            {filteredCandidates.length} Total
+          </Badge>
+        </div>
       </div>
 
       <Card>
