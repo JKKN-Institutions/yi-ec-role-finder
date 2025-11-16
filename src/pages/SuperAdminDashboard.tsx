@@ -67,6 +67,59 @@ const SuperAdminDashboard = () => {
   useEffect(() => {
     if (activeRole === "super_admin" || isSuperAdmin) {
       loadDashboardData();
+
+      // Subscribe to realtime updates
+      const channel = supabase
+        .channel("super-admin-dashboard")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "assessments",
+          },
+          () => {
+            loadDashboardData();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "user_roles",
+          },
+          () => {
+            loadDashboardData();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "profiles",
+          },
+          () => {
+            loadDashboardData();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "admin_audit_log",
+          },
+          () => {
+            loadDashboardData();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [activeRole, isSuperAdmin]);
 

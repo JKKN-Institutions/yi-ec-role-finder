@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
       throw new Error('User is not an admin')
     }
 
-    const { action, email, fullName, password, roles } = await req.json()
-    console.log('Action:', action, 'Email:', email, 'Roles:', roles)
+    const { action, email, fullName, password, roles, userId, role } = await req.json()
+    console.log('Action:', action, 'Email:', email, 'Roles:', roles, 'UserId:', userId, 'Role:', role)
 
     if (action === 'update_roles') {
       // Find or create the user
@@ -179,6 +179,89 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (action === 'assign_role') {
+      if (!userId || !role) {
+        throw new Error('userId and role are required')
+      }
+
+      // Check if role already exists
+      const { data: existingRole } = await supabaseAdmin
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('role', role)
+        .single()
+
+      if (existingRole) {
+        throw new Error('User already has this role')
+      }
+
+      // Insert new role
+      const { error: insertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({ user_id: userId, role })
+
+      if (insertError) throw insertError
+
+      // Log audit
+      await supabaseAdmin.from('user_role_audit').insert({
+        action: 'assigned_role',
+        performed_by: user.id,
+        affected_user: userId,
+        role_name: role,
+      })
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (action === 'revoke_role') {
+      if (!userId || !role) {
+        throw new Error('userId and role are required')
+      }
+
+      // Delete specific role
+      const { error: deleteError } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', role)
+
+      if (deleteError) throw deleteError
+
+      // Log audit
+      await supabaseAdmin.from('user_role_audit').insert({
+        action: 'revoked_role',
+        performed_by: user.id,
+        affected_user: userId,
+        role_name: role,
+      })
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (action === 'get_user_email') {
+      if (!userId) {
+        throw new Error('userId is required')
+      }
+
+      // Get user from auth
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId)
+      
+      if (authError) throw authError
+      if (!authUser.user) throw new Error('User not found')
+
+      return new Response(
+        JSON.stringify({ email: authUser.user.email }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
