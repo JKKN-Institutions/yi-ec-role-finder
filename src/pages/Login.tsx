@@ -25,7 +25,11 @@ const Login = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
+        // Check if user is admin
+        const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+          _user_id: session.user.id,
+        });
+        navigate(isAdmin ? "/admin" : "/");
       }
     };
     checkUser();
@@ -51,8 +55,15 @@ const Login = () => {
         return;
       }
 
-      toast.success("Signed in successfully");
-      navigate("/");
+      // Check if user is admin and redirect accordingly
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+          _user_id: user.id,
+        });
+        toast.success("Signed in successfully");
+        navigate(isAdmin ? "/admin" : "/");
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
