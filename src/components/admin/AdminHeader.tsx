@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { LogOut, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import ChapterSelector from "./ChapterSelector";
+import { useChapterContext } from "@/pages/Admin";
 
 interface AdminHeaderProps {
   breadcrumb: string;
@@ -15,6 +17,7 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
+  const { chapterId, setChapterId, isSuperAdmin } = useChapterContext();
 
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -27,6 +30,7 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
+          .limit(1)
           .single();
         
         if (roles) {
@@ -35,6 +39,7 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
             chair: "Chair",
             co_chair: "Co-Chair",
             em: "EM",
+            super_admin: "Super Admin",
           };
           setUserRole(roleLabels[roles.role] || roles.role);
         }
@@ -65,6 +70,8 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-4">
+        <ChapterSelector value={chapterId} onChange={setChapterId} />
+        
         <div className="text-right">
           <p className="text-sm font-medium">{userName}</p>
           <Badge variant="secondary" className="text-xs">

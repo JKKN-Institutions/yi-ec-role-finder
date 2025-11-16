@@ -13,6 +13,8 @@ import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
 import Admin from "./pages/Admin";
 import CandidateProfile from "./pages/CandidateProfile";
+import SuperAdmin from "./pages/SuperAdmin";
+import ChapterLanding from "./pages/ChapterLanding";
 
 const queryClient = new QueryClient();
 
@@ -25,10 +27,12 @@ const App = () => (
         <BrowserRouter>
           <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/chapter/:slug" element={<ChapterLanding />} />
           <Route path="/assessment/:id" element={<Assessment />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/results/:id" element={<Results />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/super-admin" element={<SuperAdmin />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/candidates" element={<Admin />} />
           <Route path="/admin/comparison" element={<Admin />} />
