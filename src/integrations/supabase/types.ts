@@ -319,10 +319,14 @@ export type Database = {
           id: string
           is_active: boolean | null
           location: string | null
+          logo_url: string | null
           name: string
           parent_chapter_id: string | null
+          primary_color: string | null
+          secondary_color: string | null
           slug: string
           updated_at: string | null
+          welcome_message: string | null
         }
         Insert: {
           chapter_type?: string | null
@@ -334,10 +338,14 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           location?: string | null
+          logo_url?: string | null
           name: string
           parent_chapter_id?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           slug: string
           updated_at?: string | null
+          welcome_message?: string | null
         }
         Update: {
           chapter_type?: string | null
@@ -349,10 +357,14 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           location?: string | null
+          logo_url?: string | null
           name?: string
           parent_chapter_id?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           slug?: string
           updated_at?: string | null
+          welcome_message?: string | null
         }
         Relationships: [
           {
