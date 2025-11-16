@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Download, Plus, Star } from "lucide-react";
+import { Loader2, Download, Plus, Star, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -116,7 +117,7 @@ const AdminValidation = () => {
   const addValidationMetric = async (data: {
     assessment_id: string;
     actual_role_assigned: string;
-    match_status: "accurate" | "partial" | "inaccurate";
+    match_status?: "accurate" | "partial" | "inaccurate";
     override_reasoning?: string;
     hire_date: string;
     performance_rating: number;
@@ -129,22 +130,56 @@ const AdminValidation = () => {
       return;
     }
 
+    // Auto-calculate match_status based on role comparison if not provided
+    let matchStatus = data.match_status;
+    if (!matchStatus) {
+      const aiRole = result.recommended_role.toLowerCase();
+      const actualRole = data.actual_role_assigned.toLowerCase();
+      
+      // Exact match = accurate
+      if (aiRole === actualRole) {
+        matchStatus = "accurate";
+      } 
+      // Partial match - check if roles are similar (contains similar keywords)
+      else if (
+        aiRole.includes(actualRole) || 
+        actualRole.includes(aiRole) ||
+        (aiRole.includes("chair") && actualRole.includes("chair")) ||
+        (aiRole.includes("director") && actualRole.includes("director"))
+      ) {
+        matchStatus = "partial";
+      }
+      // Otherwise inaccurate
+      else {
+        matchStatus = "inaccurate";
+      }
+    }
+
+    // Calculate 6-month retention based on hire date
+    const hireDate = new Date(data.hire_date);
+    const sixMonthsLater = new Date(hireDate);
+    sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+    const hasReached6Months = new Date() >= sixMonthsLater;
+
     const { error } = await supabase.from("validation_metrics").insert({
       assessment_id: data.assessment_id,
       ai_recommended_role: result.recommended_role,
       actual_role_assigned: data.actual_role_assigned,
-      match_status: data.match_status,
+      match_status: matchStatus,
       override_reasoning: data.override_reasoning,
       hire_date: data.hire_date,
       performance_rating: data.performance_rating,
       still_active: true,
-      retention_6_month: null,
+      retention_6_month: hasReached6Months ? true : null, // null if hasn't reached 6 months yet
     });
 
     if (error) {
       toast({ title: "Error adding metric", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Metric added successfully" });
+      toast({ 
+        title: "Validation metric added", 
+        description: `Match status: ${matchStatus} (${hasReached6Months ? '6+ months' : 'Less than 6 months'})`
+      });
       loadData();
       setAddingMetric(false);
       setSelectedAssessment("");
@@ -236,11 +271,34 @@ const AdminValidation = () => {
                 Add Feedback
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Add Validation Feedback</DialogTitle>
                 <DialogDescription>Track how candidates performed after hiring</DialogDescription>
               </DialogHeader>
+
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>How it works:</strong> The system automatically calculates accuracy by comparing 
+                  the AI's recommended role with the actual role assigned. Match status is auto-calculated 
+                  based on role similarity. 6-month retention is tracked automatically from hire date.
+                </AlertDescription>
+              </Alert>
+
+      {/* Business Logic Explanation */}
+      <Alert className="mb-6">
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Business Logic:</strong>
+          <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+            <li><strong>Accuracy:</strong> Automatic comparison of AI recommended role vs actual role assigned (Exact = Accurate, Similar = Partial, Different = Inaccurate)</li>
+            <li><strong>6-Month Retention:</strong> Auto-calculated from hire date - tracks if candidates stay beyond 6 months</li>
+            <li><strong>Performance:</strong> 1-5 star rating system to measure post-hire success</li>
+            <li><strong>Validation Cycle:</strong> Add feedback when hired → System tracks for 6 months → Update retention status</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -273,32 +331,50 @@ const AdminValidation = () => {
                   </div>
                   <div>
                     <Label>Actual Role Assigned</Label>
-                    <Input name="actual_role" required />
+                    <Input name="actual_role" required placeholder="e.g., Vice President, Co-Chair" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter the actual role they were hired for
+                    </p>
                   </div>
                   <div>
-                    <Label>Match Status</Label>
-                    <Select name="match_status" required>
+                    <Label>Match Status (Optional)</Label>
+                    <Select name="match_status">
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Auto-calculated" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="accurate">Accurate</SelectItem>
-                        <SelectItem value="partial">Partial</SelectItem>
-                        <SelectItem value="inaccurate">Inaccurate</SelectItem>
+                        <SelectItem value="accurate">Accurate - Exact match</SelectItem>
+                        <SelectItem value="partial">Partial - Similar role</SelectItem>
+                        <SelectItem value="inaccurate">Inaccurate - Different role</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Leave empty for automatic calculation based on role comparison
+                    </p>
                   </div>
                   <div>
                     <Label>Override Reasoning (if applicable)</Label>
-                    <Textarea name="override_reasoning" />
+                    <Textarea 
+                      name="override_reasoning" 
+                      placeholder="Explain why actual role differs from AI recommendation..."
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Optional: Provide context if you override the automatic match status
+                    </p>
                   </div>
                   <div>
                     <Label>Hire Date</Label>
                     <Input name="hire_date" type="date" required />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used to calculate 6-month retention automatically
+                    </p>
                   </div>
                   <div>
-                    <Label>Performance Rating (1-5)</Label>
+                    <Label>Performance Rating (1-5 stars)</Label>
                     <Input name="performance_rating" type="number" min="1" max="5" required />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Current performance rating after hiring
+                    </p>
                   </div>
                 </div>
                 <DialogFooter className="mt-4">
@@ -412,21 +488,22 @@ const AdminValidation = () => {
         <CardHeader>
           <CardTitle>Detailed Feedback</CardTitle>
           <CardDescription>
-            <div className="flex items-center gap-2 mt-2">
-              <Label>Filter by status:</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="accurate">Accurate</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="inaccurate">Inaccurate</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            Individual candidate feedback and validation data
           </CardDescription>
+          <div className="flex items-center gap-2 mt-2">
+            <Label>Filter by status:</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="accurate">Accurate</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="inaccurate">Inaccurate</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
