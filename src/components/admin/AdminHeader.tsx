@@ -18,7 +18,7 @@ export function AdminHeader({ breadcrumb }: AdminHeaderProps) {
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
   const { chapterId, setChapterId, isSuperAdmin } = useChapterContext();
-  const [userChapters, setUserChapters] = useState<any[]>([]);
+  const [userChapters, setUserChapters] = useState<Array<{chapter_id: string, chapter_name: string}>>([]);
 
   useEffect(() => {
     const loadUserInfo = async () => {
