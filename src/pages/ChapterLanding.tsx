@@ -19,10 +19,6 @@ interface Chapter {
   contact_email: string | null;
   contact_phone: string | null;
   is_active: boolean;
-  logo_url?: string | null;
-  primary_color?: string | null;
-  secondary_color?: string | null;
-  welcome_message?: string | null;
 }
 
 const ChapterLanding = () => {
@@ -142,46 +138,22 @@ const ChapterLanding = () => {
     return null;
   }
 
-  const customStyle = chapter.primary_color ? {
-    '--chapter-primary': chapter.primary_color,
-    '--chapter-secondary': chapter.secondary_color || chapter.primary_color,
-  } as React.CSSProperties : {};
-
   return (
-    <div 
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4"
-      style={customStyle}
-    >
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <Card className="max-w-2xl w-full">
         <CardHeader className="text-center space-y-4">
-          {chapter.logo_url && (
-            <div className="flex justify-center mb-4">
-              <img 
-                src={chapter.logo_url} 
-                alt={`${chapter.name} logo`}
-                className="h-20 w-auto object-contain"
-              />
-            </div>
-          )}
           <div className="flex justify-center">
-            <Badge 
-              className="text-white px-4 py-1"
-              style={chapter.primary_color ? { backgroundColor: chapter.primary_color } : {}}
-            >
+            <Badge className={`${getTypeColor(chapter.chapter_type)} text-white px-4 py-1`}>
               {getTypeLabel(chapter.chapter_type)}
             </Badge>
           </div>
           <div className="space-y-2">
             <CardTitle className="text-3xl font-bold">{chapter.name}</CardTitle>
-            {chapter.welcome_message ? (
-              <CardDescription className="text-base whitespace-pre-line">
-                {chapter.welcome_message}
-              </CardDescription>
-            ) : chapter.description ? (
+            {chapter.description && (
               <CardDescription className="text-base">
                 {chapter.description}
               </CardDescription>
-            ) : null}
+            )}
           </div>
         </CardHeader>
 
@@ -237,7 +209,6 @@ const ChapterLanding = () => {
             disabled={starting}
             className="w-full"
             size="lg"
-            style={chapter.primary_color ? { backgroundColor: chapter.primary_color, borderColor: chapter.primary_color } : {}}
           >
             {starting ? "Starting..." : "Start Assessment"}
           </Button>

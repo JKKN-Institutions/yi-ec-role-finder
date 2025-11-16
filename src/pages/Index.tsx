@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,33 +24,10 @@ const Index = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [chapters, setChapters] = useState<any[]>([]);
-  const [selectedChapter, setSelectedChapter] = useState<string>("");
 
   useEffect(() => {
     checkAdminAccess();
-    loadChapters();
   }, []);
-
-  const loadChapters = async () => {
-    try {
-      const { data, error } = await (supabase
-        .from("chapters")
-        .select("id, name, slug")
-        .eq("is_active", true)
-        .order("name") as any);
-
-      if (error) throw error;
-      setChapters(data || []);
-      
-      // Set default chapter if only one exists
-      if (data && data.length === 1) {
-        setSelectedChapter(data[0].id);
-      }
-    } catch (error) {
-      console.error("Error loading chapters:", error);
-    }
-  };
 
   const checkAdminAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -83,17 +59,11 @@ const Index = () => {
       setIsSubmitting(true);
       const validated = emailSchema.parse({ email, name });
 
-      if (!selectedChapter) {
-        toast.error("Please select a chapter");
-        return;
-      }
-
       const { data: assessment, error } = await supabase
         .from("assessments")
         .insert({
           user_email: validated.email,
           user_name: validated.name,
-          chapter_id: selectedChapter,
           status: "in_progress",
           current_question: 1,
         })
@@ -190,23 +160,7 @@ const Index = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="chapter">Chapter *</Label>
-              <Select value={selectedChapter} onValueChange={setSelectedChapter}>
-                <SelectTrigger id="chapter" className="bg-background">
-                  <SelectValue placeholder="Select your chapter" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50">
-                  {chapters.map((chapter) => (
-                    <SelectItem key={chapter.id} value={chapter.id}>
-                      {chapter.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
+              <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
                 placeholder="John Doe"
@@ -215,7 +169,7 @@ const Index = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -227,7 +181,7 @@ const Index = () => {
             <Button 
               onClick={handleStartAssessment} 
               className="w-full"
-              disabled={isSubmitting || !selectedChapter}
+              disabled={isSubmitting}
             >
               {isSubmitting ? "Starting..." : "Continue"}
             </Button>
