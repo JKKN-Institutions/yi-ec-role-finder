@@ -9,10 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Search, Eye, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { exportToCSV, formatAssessmentsForExport } from "@/lib/export";
-import { Download } from "lucide-react";
-import { useChapterContext } from "./Admin";
 
 interface Candidate {
   id: string;
@@ -29,57 +25,26 @@ interface Candidate {
 
 const AdminCandidates = () => {
   const navigate = useNavigate();
-  const { chapterId, isSuperAdmin } = useChapterContext();
-  const { toast } = useToast();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
-  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   useEffect(() => {
     loadCandidates();
-
-    // Set up realtime subscription
-    const channel = supabase
-      .channel('candidates-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'assessments'
-        },
-        (payload) => {
-          console.log('Assessment changed:', payload);
-          loadCandidates();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [chapterId]);
+  }, []);
 
   const loadCandidates = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from("assessments" as any)
+      const { data: assessments, error } = await supabase
+        .from("assessments")
         .select(`
           *,
           assessment_results(recommended_role, quadrant)
-        `);
-
-      // Filter by chapter if not super admin viewing all
-      if (!isSuperAdmin || (chapterId && chapterId !== "all")) {
-        query = query.eq("chapter_id", chapterId);
-      }
-
-      const { data: assessments, error } = await query.order("created_at", { ascending: false });
+        `)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -137,163 +102,6 @@ const AdminCandidates = () => {
     return matchesSearch && matchesStatus && matchesReview;
   });
 
-  const handleExport = () => {
-    const exportData = formatAssessmentsForExport(filteredCandidates);
-    exportToCSV(exportData, `candidates-${chapterId}-${new Date().toISOString().split('T')[0]}`);
-    toast({
-      title: "Export Successful",
-      description: "Candidate data has been exported to CSV"
-    });
-  };
-
-  const toggleSelectCandidate = (id: string) => {
-    setSelectedCandidates((prev) =>
-      prev.includes(id) ? prev.filter((cid) => cid !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedCandidates.length === filteredCandidates.length) {
-      setSelectedCandidates([]);
-    } else {
-      setSelectedCandidates(filteredCandidates.map((c) => c.id));
-    }
-  };
-
-  const handleBulkShortlist = async () => {
-    if (selectedCandidates.length === 0) return;
-    setBulkActionLoading(true);
-    try {
-      const { error } = await supabase
-        .from("assessments")
-        .update({ is_shortlisted: true })
-        .in("id", selectedCandidates);
-
-      if (error) throw error;
-
-      // Log bulk action
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await (supabase as any).rpc("log_admin_action", {
-          _admin_user_id: user.id,
-          _admin_email: user.email,
-          _action_type: "bulk_shortlist",
-          _target_type: "assessment",
-          _target_id: null,
-          _details: { count: selectedCandidates.length }
-        });
-      }
-
-      await loadCandidates();
-      setSelectedCandidates([]);
-      toast({
-        title: "Success",
-        description: `${selectedCandidates.length} candidates shortlisted`
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setBulkActionLoading(false);
-    }
-  };
-
-  const handleBulkReview = async (status: string) => {
-    if (selectedCandidates.length === 0) return;
-    setBulkActionLoading(true);
-    try {
-      const { error } = await supabase
-        .from("assessments")
-        .update({ review_status: status })
-        .in("id", selectedCandidates);
-
-      if (error) throw error;
-
-      // Log bulk action
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await (supabase as any).rpc("log_admin_action", {
-          _admin_user_id: user.id,
-          _admin_email: user.email,
-          _action_type: "bulk_review",
-          _target_type: "assessment",
-          _target_id: null,
-          _details: { count: selectedCandidates.length, status }
-        });
-      }
-
-      await loadCandidates();
-      setSelectedCandidates([]);
-      toast({
-        title: "Success",
-        description: `${selectedCandidates.length} candidates marked as ${status}`
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setBulkActionLoading(false);
-    }
-  };
-
-  const handleBulkExport = () => {
-    const selectedData = candidates.filter((c) => selectedCandidates.includes(c.id));
-    const exportData = formatAssessmentsForExport(selectedData);
-    exportToCSV(exportData, `bulk-export-${new Date().toISOString().split('T')[0]}`);
-    toast({
-      title: "Export Successful",
-      description: `${selectedCandidates.length} candidates exported`
-    });
-    setSelectedCandidates([]);
-  };
-
-  const handleShortlist = async (id: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from("assessments")
-        .update({ is_shortlisted: !currentStatus })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      // Log the action
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const candidate = candidates.find(c => c.id === id);
-        await (supabase as any).rpc("log_admin_action", {
-          _admin_user_id: user.id,
-          _admin_email: user.email,
-          _action_type: "assessment_shortlisted",
-          _target_type: "assessment",
-          _target_id: id,
-          _details: {
-            candidate_name: candidate?.user_name,
-            candidate_email: candidate?.user_email,
-            shortlisted: !currentStatus
-          }
-        });
-      }
-
-      await loadCandidates();
-      toast({
-        title: "Success",
-        description: `Candidate ${!currentStatus ? "shortlisted" : "removed from shortlist"}`
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -309,33 +117,9 @@ const AdminCandidates = () => {
           <h1 className="text-3xl font-bold">Candidates</h1>
           <p className="text-muted-foreground">View and manage all assessment candidates</p>
         </div>
-        <div className="flex gap-2 items-center">
-          {selectedCandidates.length > 0 ? (
-            <>
-              <Button onClick={handleBulkShortlist} disabled={bulkActionLoading} variant="default">
-                <Loader2 className={`h-4 w-4 mr-2 ${bulkActionLoading ? 'animate-spin' : 'hidden'}`} />
-                Shortlist ({selectedCandidates.length})
-              </Button>
-              <Button onClick={() => handleBulkReview("reviewed")} disabled={bulkActionLoading} variant="secondary">
-                Mark Reviewed ({selectedCandidates.length})
-              </Button>
-              <Button onClick={handleBulkExport} disabled={bulkActionLoading} variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export ({selectedCandidates.length})
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button onClick={handleExport} variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-              <Badge variant="outline" className="text-lg px-4 py-2">
-                {filteredCandidates.length} Total
-              </Badge>
-            </>
-          )}
-        </div>
+        <Badge variant="outline" className="text-lg px-4 py-2">
+          {filteredCandidates.length} Total
+        </Badge>
       </div>
 
       <Card>
@@ -386,14 +170,6 @@ const AdminCandidates = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
-                  <input
-                    type="checkbox"
-                    checked={selectedCandidates.length === filteredCandidates.length && filteredCandidates.length > 0}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-input bg-background"
-                  />
-                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Status</TableHead>
@@ -406,21 +182,13 @@ const AdminCandidates = () => {
             <TableBody>
               {filteredCandidates.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No candidates found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredCandidates.map((candidate) => (
                   <TableRow key={candidate.id}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={selectedCandidates.includes(candidate.id)}
-                        onChange={() => toggleSelectCandidate(candidate.id)}
-                        className="h-4 w-4 rounded border-input bg-background"
-                      />
-                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {candidate.user_name}

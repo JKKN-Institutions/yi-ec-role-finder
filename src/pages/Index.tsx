@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Target, LayoutDashboard } from "lucide-react";
+import { Target } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const emailSchema = z.object({
@@ -22,37 +22,6 @@ const Index = () => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    checkAdminAccess();
-  }, []);
-
-  const checkAdminAccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Check super admin
-    const { data: superAdmin } = await (supabase.rpc as any)("is_super_admin", {
-      _user_id: user.id,
-    });
-
-    if (superAdmin) {
-      setIsSuperAdmin(true);
-      setIsAdmin(true);
-      return;
-    }
-
-    // Check regular admin
-    const { data: admin } = await supabase.rpc("is_admin_user", {
-      _user_id: user.id,
-    });
-
-    if (admin) {
-      setIsAdmin(true);
-    }
-  };
 
   const handleStartAssessment = async () => {
     try {
@@ -113,39 +82,13 @@ const Index = () => {
               AI-powered assessment to match you with the right position based on your skills and motivation
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button 
-                onClick={() => setShowModal(true)} 
-                size="lg"
-                className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-              >
-                Start Assessment
-              </Button>
-
-              {isSuperAdmin && (
-                <Button 
-                  onClick={() => navigate("/super-admin")} 
-                  size="lg"
-                  variant="outline"
-                  className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-                >
-                  <LayoutDashboard className="h-5 w-5 mr-2" />
-                  Super Admin Dashboard
-                </Button>
-              )}
-
-              {isAdmin && !isSuperAdmin && (
-                <Button 
-                  onClick={() => navigate("/admin")} 
-                  size="lg"
-                  variant="outline"
-                  className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-                >
-                  <LayoutDashboard className="h-5 w-5 mr-2" />
-                  Admin Dashboard
-                </Button>
-              )}
-            </div>
+            <Button 
+              onClick={() => setShowModal(true)} 
+              size="lg"
+              className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
+            >
+              Start Assessment
+            </Button>
           </div>
         </div>
       </div>

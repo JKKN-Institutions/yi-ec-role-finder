@@ -57,8 +57,6 @@ type ValidationMetric = {
   result?: any;
 };
 
-import { useChapterContext } from "./Admin";
-
 const AdminValidation = () => {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<ValidationMetric[]>([]);
@@ -68,11 +66,10 @@ const AdminValidation = () => {
   const [addingMetric, setAddingMetric] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<string>("");
   const { toast } = useToast();
-  const { chapterId, isSuperAdmin } = useChapterContext();
 
   useEffect(() => {
     loadData();
-  }, [chapterId]);
+  }, []);
 
   useEffect(() => {
     if (statusFilter === "all") {
@@ -85,30 +82,17 @@ const AdminValidation = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      let metricsQuery = supabase
-        .from("validation_metrics" as any)
-        .select(`
-          *,
-          assessments(
-            user_name,
-            user_email
-          ),
-          assessment_results(recommended_role, quadrant)
-        `);
-      
-      let assessmentsQuery = supabase
-        .from("assessments" as any)
-        .select("*, assessment_results(*)")
-        .eq("status", "completed");
-
-      if (!isSuperAdmin || (chapterId && chapterId !== "all")) {
-        metricsQuery = metricsQuery.eq("chapter_id", chapterId);
-        assessmentsQuery = assessmentsQuery.eq("chapter_id", chapterId);
-      }
-
       const [metricsRes, assessmentsRes] = await Promise.all([
-        metricsQuery,
-        assessmentsQuery,
+        supabase
+          .from("validation_metrics")
+          .select(`
+            *,
+            assessments(
+              *,
+              assessment_results(*)
+            )
+          `),
+        supabase.from("assessments").select("*, assessment_results(*)").eq("status", "completed"),
       ]);
 
       if (metricsRes.error) throw metricsRes.error;

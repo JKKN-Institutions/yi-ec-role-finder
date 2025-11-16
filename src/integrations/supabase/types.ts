@@ -14,69 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_audit_log: {
-        Row: {
-          action_type: string
-          admin_email: string
-          admin_user_id: string
-          created_at: string
-          details: Json | null
-          id: string
-          target_id: string | null
-          target_type: string | null
-        }
-        Insert: {
-          action_type: string
-          admin_email: string
-          admin_user_id: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          target_id?: string | null
-          target_type?: string | null
-        }
-        Update: {
-          action_type?: string
-          admin_email?: string
-          admin_user_id?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          target_id?: string | null
-          target_type?: string | null
-        }
-        Relationships: []
-      }
-      admin_preferences: {
-        Row: {
-          created_at: string | null
-          dashboard_layout: Json | null
-          default_filters: Json | null
-          id: string
-          notification_preferences: Json | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          dashboard_layout?: Json | null
-          default_filters?: Json | null
-          id?: string
-          notification_preferences?: Json | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          dashboard_layout?: Json | null
-          default_filters?: Json | null
-          id?: string
-          notification_preferences?: Json | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       assessment_responses: {
         Row: {
           assessment_id: string
@@ -174,7 +111,6 @@ export type Database = {
       assessments: {
         Row: {
           admin_notes: string | null
-          chapter_id: string | null
           completed_at: string | null
           created_at: string
           current_question: number
@@ -190,7 +126,6 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
-          chapter_id?: string | null
           completed_at?: string | null
           created_at?: string
           current_question?: number
@@ -206,7 +141,6 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
-          chapter_id?: string | null
           completed_at?: string | null
           created_at?: string
           current_question?: number
@@ -220,15 +154,7 @@ export type Database = {
           user_email?: string
           user_name?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "assessments_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       candidate_feedback: {
         Row: {
@@ -308,39 +234,6 @@ export type Database = {
           },
         ]
       }
-      chapters: {
-        Row: {
-          chapter_type: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          is_active: boolean | null
-          name: string
-          slug: string
-          updated_at: string | null
-        }
-        Insert: {
-          chapter_type?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          slug: string
-          updated_at?: string | null
-        }
-        Update: {
-          chapter_type?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          slug?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -394,35 +287,24 @@ export type Database = {
       }
       user_roles: {
         Row: {
-          chapter_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          chapter_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          chapter_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       validation_metrics: {
         Row: {
@@ -515,15 +397,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_chapters: {
-        Args: { _user_id: string }
-        Returns: {
-          chapter_id: string
-          chapter_name: string
-          chapter_type: string
-          role: string
-        }[]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -532,21 +405,9 @@ export type Database = {
         Returns: boolean
       }
       is_admin_user: { Args: { _user_id: string }; Returns: boolean }
-      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
-      log_admin_action: {
-        Args: {
-          _action_type: string
-          _admin_email: string
-          _admin_user_id: string
-          _details?: Json
-          _target_id?: string
-          _target_type?: string
-        }
-        Returns: string
-      }
     }
     Enums: {
-      app_role: "admin" | "chair" | "co_chair" | "em" | "user" | "super_admin"
+      app_role: "admin" | "chair" | "co_chair" | "em" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -674,7 +535,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "chair", "co_chair", "em", "user", "super_admin"],
+      app_role: ["admin", "chair", "co_chair", "em", "user"],
     },
   },
 } as const

@@ -1,8 +1,5 @@
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
-import { useNotifications } from "@/hooks/useNotifications";
-import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -12,9 +9,6 @@ import {
   Activity,
   Layers,
   UserCog,
-  Shield,
-  Bell,
-  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,36 +21,21 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 const navigationItems = [
   { title: "Overview", url: "/admin", icon: LayoutDashboard, end: true },
-  { title: "Candidates", url: "/admin/candidates", icon: Users, showBadge: true },
+  { title: "Candidates", url: "/admin/candidates", icon: Users },
   { title: "Comparison", url: "/admin/comparison", icon: GitCompare },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "Validation", url: "/admin/validation", icon: CheckCircle },
   { title: "Tracking", url: "/admin/tracking", icon: Activity },
   { title: "Verticals", url: "/admin/verticals", icon: Layers },
   { title: "User Roles", url: "/admin/roles", icon: UserCog },
-  { title: "Audit Log", url: "/admin/audit", icon: Shield },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
 export function AdminSidebar() {
   const { open } = useSidebar();
   const location = useLocation();
-  const [userId, setUserId] = useState<string | undefined>();
-  
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUserId(user?.id);
-    };
-    getUser();
-  }, []);
-
-  const { pendingCount, notificationsEnabled, requestNotificationPermission } = useNotifications(userId);
 
   return (
     <Sidebar collapsible="icon">
@@ -80,11 +59,6 @@ export function AdminSidebar() {
                       >
                         <item.icon className="h-4 w-4" />
                         {open && <span>{item.title}</span>}
-                        {item.showBadge && pendingCount > 0 && (
-                          <Badge variant="destructive" className="ml-auto">
-                            {pendingCount}
-                          </Badge>
-                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -93,20 +67,6 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {open && !notificationsEnabled && (
-          <div className="p-4 mt-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={requestNotificationPermission}
-              className="w-full"
-            >
-              <Bell className="h-4 w-4 mr-2" />
-              Enable Notifications
-            </Button>
-          </div>
-        )}
       </SidebarContent>
     </Sidebar>
   );
