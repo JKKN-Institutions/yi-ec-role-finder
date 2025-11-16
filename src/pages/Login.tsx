@@ -25,15 +25,36 @@ const Login = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Check if user is admin
-        const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-          _user_id: session.user.id,
-        });
-        navigate(isAdmin ? "/admin" : "/");
+        // Check user role and redirect accordingly
+        const { data: userRoles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single();
+        
+        if (userRoles) {
+          const redirectPath = getRedirectPath(userRoles.role);
+          navigate(redirectPath);
+        } else {
+          navigate("/");
+        }
       }
     };
     checkUser();
   }, [navigate]);
+
+  const getRedirectPath = (role: string) => {
+    switch (role) {
+      case "admin":
+      case "super_admin":
+      case "chair":
+      case "co_chair":
+      case "em":
+        return "/admin";
+      default:
+        return "/";
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,14 +76,18 @@ const Login = () => {
         return;
       }
 
-      // Check if user is admin and redirect accordingly
+      // Check user role and redirect accordingly
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-          _user_id: user.id,
-        });
+        const { data: userRoles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        
         toast.success("Signed in successfully");
-        navigate(isAdmin ? "/admin" : "/");
+        const redirectPath = userRoles ? getRedirectPath(userRoles.role) : "/";
+        navigate(redirectPath);
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
