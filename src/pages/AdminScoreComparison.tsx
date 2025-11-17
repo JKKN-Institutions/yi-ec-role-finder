@@ -56,7 +56,7 @@ const AdminScoreComparison = () => {
   const loadComparisons = async () => {
     setLoading(true);
     try {
-      const { data: results } = await supabase
+      const { data: results, error } = await supabase
         .from("assessment_results")
         .select(`
           id,
@@ -69,7 +69,16 @@ const AdminScoreComparison = () => {
         `)
         .order("created_at", { ascending: false });
 
+      console.log('Load comparisons results:', results, 'error:', error);
+
+      if (error) {
+        console.error('Error loading comparisons:', error);
+        toast({ title: "Error loading data", description: error.message, variant: "destructive" });
+        return;
+      }
+
       if (results) {
+        console.log('Formatting results:', results);
         const formattedData: ComparisonData[] = results.map((r: any) => ({
           id: r.assessment_id,
           user_name: r.assessments?.user_name || "Unknown",
@@ -80,9 +89,11 @@ const AdminScoreComparison = () => {
           old_role: r.recommended_role,
           analyzed: false,
         }));
+        console.log('Formatted data:', formattedData);
         setComparisons(formattedData);
       }
     } catch (error: any) {
+      console.error('Catch error:', error);
       toast({ title: "Error loading data", description: error.message, variant: "destructive" });
     }
     setLoading(false);
