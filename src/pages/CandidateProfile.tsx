@@ -6,6 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Star, Download, Trash2, Mail, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { ScoringBreakdown } from "@/components/admin/ScoringBreakdown";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
   Select,
   SelectContent,
@@ -30,10 +37,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ArrowLeft, Star, Download, Trash2, Mail, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { ScoringBreakdown } from "@/components/admin/ScoringBreakdown";
 
 interface CandidateData {
   id: string;
@@ -68,6 +71,8 @@ const CandidateProfile = () => {
   const [loading, setLoading] = useState(true);
   const [candidate, setCandidate] = useState<CandidateData | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
+  const [reviewStatus, setReviewStatus] = useState("new");
+  const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
 
@@ -75,6 +80,12 @@ const CandidateProfile = () => {
     loadCandidate();
     loadCurrentUser();
   }, [assessmentId]);
+
+  useEffect(() => {
+    if (candidate) {
+      setReviewStatus(candidate.review_status);
+    }
+  }, [candidate]);
 
   const loadCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -218,6 +229,43 @@ const CandidateProfile = () => {
     }
   };
 
+  const handleSaveReview = async () => {
+    if (!assessmentId || !currentUserId) return;
+    
+    setSaving(true);
+    const { error } = await supabase
+      .from("assessments")
+      .update({
+        review_status: reviewStatus,
+        admin_notes: adminNotes,
+        reviewed_by: currentUserId,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", assessmentId);
+
+    if (error) {
+      toast.error("Failed to save review");
+    } else {
+      toast.success("Review saved successfully");
+      setLastSaved(new Date());
+      loadCandidate();
+    }
+    setSaving(false);
+  };
+
+  const handleExport = () => {
+    if (!candidate) return;
+    
+    const dataStr = JSON.stringify(candidate, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `candidate-${candidate.user_name}-${assessmentId}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
   const getQuadrantColor = (quadrant: string) => {
     const colors: Record<string, string> = {
       Q1: "bg-green-500",
@@ -256,453 +304,310 @@ const CandidateProfile = () => {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/admin/candidates")}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Candidates
-          </Button>
-
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">{candidate.user_name}</h1>
-              <a
-                href={`mailto:${candidate.user_email}`}
-                className="text-muted-foreground hover:text-primary flex items-center gap-2"
-              >
-                <Mail className="h-4 w-4" />
-                {candidate.user_email}
-              </a>
-              <p className="text-sm text-muted-foreground mt-2">
-                Submitted: {format(new Date(candidate.created_at), "MMMM d, yyyy 'at' h:mm a")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Bar */}
-        <Card className="p-4 mb-6">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Status:</span>
-              <Select value={candidate.review_status} onValueChange={updateStatus}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="reviewed">Reviewed</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              variant={candidate.is_shortlisted ? "default" : "outline"}
-              onClick={toggleShortlist}
-              className="gap-2"
-            >
-              <Star
-                className={`h-4 w-4 ${candidate.is_shortlisted ? "fill-current" : ""}`}
-              />
-              {candidate.is_shortlisted ? "Shortlisted" : "Shortlist"}
-            </Button>
-
-            <Button variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              Export PDF
-            </Button>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2 ml-auto">
-                  <Trash2 className="h-4 w-4" />
-                  Delete
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AdminSidebar />
+        <div className="flex-1 flex flex-col">
+          <AdminHeader breadcrumb="Candidate Profile" />
+          <main className="flex-1 overflow-auto bg-background">
+            <div className="container mx-auto px-4 py-8 max-w-7xl">
+              {/* Header */}
+              <div className="mb-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/admin/candidates")}
+                  className="mb-4"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Candidates
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Candidate?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete this candidate's assessment, responses, and
-                    results. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={deleteCandidate}>
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </Card>
 
-        {/* Main Content - 3 Columns */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* LEFT COLUMN: Scores */}
-          <div className="space-y-6">
-            {candidate.results && (
-              <>
-                {/* Scores Card */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">WILL/SKILL Scores</h3>
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">WILL</span>
-                        <span className="text-2xl font-bold text-primary">
-                          {candidate.results.will_score}
-                        </span>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h1 className="text-3xl font-bold">{candidate.user_name}</h1>
+                    <div className="flex items-center gap-4 mt-2 text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        {candidate.user_email}
                       </div>
-                      <Progress value={candidate.results.will_score} className="h-3" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">SKILL</span>
-                        <span className="text-2xl font-bold text-blue-600">
-                          {candidate.results.skill_score}
-                        </span>
-                      </div>
-                      <Progress value={candidate.results.skill_score} className="h-3" />
+                      <Badge
+                        variant={
+                          candidate.status === "completed" ? "default" : "secondary"
+                        }
+                      >
+                        {candidate.status}
+                      </Badge>
+                      <Badge
+                        variant={
+                          candidate.review_status === "approved"
+                            ? "default"
+                            : candidate.review_status === "rejected"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {candidate.review_status}
+                      </Badge>
                     </div>
                   </div>
-                </Card>
 
-                {/* Quadrant Card */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Quadrant</h3>
-                  <Badge
-                    className={`${getQuadrantColor(candidate.results.quadrant)} text-white mb-2`}
-                  >
-                    {candidate.results.quadrant}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">
-                    {getQuadrantLabel(candidate.results.quadrant)}
-                  </p>
-                </Card>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleShortlist}
+                    >
+                      <Star
+                        className={`h-4 w-4 mr-2 ${
+                          candidate.is_shortlisted ? "fill-yellow-400 text-yellow-400" : ""
+                        }`}
+                      />
+                      {candidate.is_shortlisted ? "Shortlisted" : "Shortlist"}
+                    </Button>
 
-                {/* Recommended Role */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Recommended Role</h3>
-                  <Badge className="text-lg mb-3">{candidate.results.recommended_role}</Badge>
-                  <p className="text-sm text-muted-foreground">
-                    {candidate.results.role_explanation}
-                  </p>
-                </Card>
+                    <Button variant="outline" size="sm" onClick={handleExport}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
 
-                {/* Vertical Matches */}
-                {candidate.verticals.length > 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Candidate?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete this candidate's assessment and all
+                            associated data. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={deleteCandidate}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column - Results Summary */}
+                <div className="space-y-6">
+                  {candidate.results && (
+                    <Card className="p-6">
+                      <h2 className="text-xl font-semibold mb-4">Assessment Results</h2>
+
+                      <div className="space-y-6">
+                        {/* Quadrant Display */}
+                        <div className="text-center p-6 rounded-lg border-2 border-primary">
+                          <div
+                            className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${getQuadrantColor(
+                              candidate.results.quadrant
+                            )} text-white text-2xl font-bold mb-3`}
+                          >
+                            {candidate.results.quadrant}
+                          </div>
+                          <h3 className="text-lg font-semibold">
+                            {getQuadrantLabel(candidate.results.quadrant)}
+                          </h3>
+                        </div>
+
+                        {/* Scores */}
+                        <div className="space-y-4">
+                          <div>
+                            <div className="flex justify-between mb-2">
+                              <span className="text-sm font-medium">WILL Score</span>
+                              <span className="text-sm font-bold">
+                                {candidate.results.will_score}/100
+                              </span>
+                            </div>
+                            <Progress value={candidate.results.will_score} />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between mb-2">
+                              <span className="text-sm font-medium">SKILL Score</span>
+                              <span className="text-sm font-bold">
+                                {candidate.results.skill_score}/100
+                              </span>
+                            </div>
+                            <Progress value={candidate.results.skill_score} />
+                          </div>
+                        </div>
+
+                        {/* Recommended Role */}
+                        <div>
+                          <h3 className="text-sm font-medium mb-2">Recommended Role</h3>
+                          <Badge className="text-base px-4 py-2">
+                            {candidate.results.recommended_role}
+                          </Badge>
+                        </div>
+
+                        {/* Vertical Matches */}
+                        {candidate.results.vertical_matches &&
+                          candidate.results.vertical_matches.length > 0 && (
+                            <div>
+                              <h3 className="text-sm font-medium mb-2">Vertical Matches</h3>
+                              <div className="flex flex-wrap gap-2">
+                                {candidate.results.vertical_matches.map((vertical, idx) => (
+                                  <Badge key={idx} variant="secondary">
+                                    {vertical}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Leadership Style */}
+                        {candidate.results.leadership_style && (
+                          <div>
+                            <h3 className="text-sm font-medium mb-2">Leadership Style</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {candidate.results.leadership_style}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Review Actions */}
                   <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Vertical Matches</h3>
+                    <h2 className="text-xl font-semibold mb-4">Review Actions</h2>
+
                     <div className="space-y-4">
-                      {candidate.verticals.map((vertical, index) => (
-                        <div key={vertical.id}>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-medium text-sm">{vertical.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              #{index + 1}
-                            </span>
-                          </div>
-                          <Progress value={85 - index * 10} className="h-2" />
-                        </div>
-                      ))}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Review Status
+                        </label>
+                        <Select value={reviewStatus} onValueChange={setReviewStatus}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new">New</SelectItem>
+                            <SelectItem value="pending">Pending Review</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                            <SelectItem value="on_hold">On Hold</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Admin Notes
+                        </label>
+                        <Textarea
+                          value={adminNotes}
+                          onChange={(e) => setAdminNotes(e.target.value)}
+                          placeholder="Add notes about this candidate..."
+                          rows={4}
+                        />
+                      </div>
+
+                      <Button
+                        onClick={handleSaveReview}
+                        disabled={saving}
+                        className="w-full"
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Review"
+                        )}
+                      </Button>
                     </div>
                   </Card>
-                )}
-              </>
-            )}
-          </div>
+                </div>
 
-          {/* MIDDLE COLUMN: Responses */}
-          <div className="space-y-6">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Assessment Responses</h3>
-              
-              <Accordion type="single" collapsible className="space-y-2">
-                {/* Q1: Vertical Preferences */}
-                {responseMap[1] && (
-                  <AccordionItem value="q1">
-                    <AccordionTrigger>Question 1: Vertical Preferences</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-2">
-                        {responseMap[1].response_data.priority1 && (
-                          <div className="flex items-center gap-2">
-                            <Badge>Priority 1</Badge>
-                            <span className="text-sm">
-                              {candidate.verticals.find(
-                                (v) => v.id === responseMap[1].response_data.priority1
-                              )?.name || responseMap[1].response_data.priority1}
-                            </span>
-                          </div>
-                        )}
-                        {responseMap[1].response_data.priority2 && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">Priority 2</Badge>
-                            <span className="text-sm">
-                              {candidate.verticals.find(
-                                (v) => v.id === responseMap[1].response_data.priority2
-                              )?.name || responseMap[1].response_data.priority2}
-                            </span>
-                          </div>
-                        )}
-                        {responseMap[1].response_data.priority3 && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">Priority 3</Badge>
-                            <span className="text-sm">
-                              {candidate.verticals.find(
-                                (v) => v.id === responseMap[1].response_data.priority3
-                              )?.name || responseMap[1].response_data.priority3}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
-
-                {/* Q2: Saturday Scenario */}
-                {responseMap[2] && (
-                  <AccordionItem value="q2">
-                    <AccordionTrigger>Question 2: Saturday Emergency</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3">
-                        <div className="bg-muted p-3 rounded text-sm">
-                          {responseMap[2].response_data.response}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Word count: {responseMap[2].response_data.response?.split(" ").length || 0}
-                        </p>
-                        {candidate.results?.scoring_breakdown?.will?.saturday_scenario && (
-                          <div className="border-t pt-3">
-                            <p className="text-sm font-medium">
-                              AI Commitment Score:{" "}
-                              {candidate.results.scoring_breakdown.will.saturday_scenario.score}/25
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {candidate.results.scoring_breakdown.will.saturday_scenario.reasoning}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
-
-                {/* Q3: Achievement Statement */}
-                {responseMap[3] && (
-                  <AccordionItem value="q3">
-                    <AccordionTrigger>Question 3: Achievement Statement</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3">
-                        <div className="bg-muted p-3 rounded text-sm">
-                          {responseMap[3].response_data.statement}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Word count: {responseMap[3].response_data.statement?.split(" ").length || 0}
-                        </p>
-                        {candidate.results?.scoring_breakdown?.will?.achievement && (
-                          <div className="border-t pt-3">
-                            <p className="text-sm font-medium">
-                              Score: {candidate.results.scoring_breakdown.will.achievement}/25
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
-
-                {/* Q4: Constraints */}
-                {responseMap[4] && (
-                  <AccordionItem value="q4">
-                    <AccordionTrigger>Question 4: Constraints</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Selected:</span>
-                          <Badge>{responseMap[4].response_data.constraint}</Badge>
-                        </div>
-                        {responseMap[4].response_data.handling && (
-                          <div className="bg-muted p-3 rounded text-sm">
-                            <p className="font-medium mb-1">How they'll handle it:</p>
-                            {responseMap[4].response_data.handling}
-                          </div>
-                        )}
-                        {candidate.results?.scoring_breakdown?.will?.constraints && (
-                          <p className="text-sm font-medium">
-                            Score: {candidate.results.scoring_breakdown.will.constraints}/30
-                          </p>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
-
-                {/* Q5: Leadership Style */}
-                {responseMap[5] && (
-                  <AccordionItem value="q5">
-                    <AccordionTrigger>Question 5: Leadership Style</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Selected:</span>
-                          <Badge>{responseMap[5].response_data.leadership_style}</Badge>
-                        </div>
-                        {candidate.results?.scoring_breakdown?.will?.leadership_style && (
-                          <p className="text-sm font-medium">
-                            Score: {candidate.results.scoring_breakdown.will.leadership_style}/20
-                          </p>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
-              </Accordion>
-            </Card>
-          </div>
-
-          {/* RIGHT COLUMN: Insights & Notes */}
-          <div className="space-y-6">
-            {candidate.results && (
-              <>
-                {/* Scoring Breakdown - NEW */}
-                <ScoringBreakdown
-                  willScore={candidate.results.will_score}
-                  skillScore={candidate.results.skill_score}
-                  scoringBreakdown={candidate.results.scoring_breakdown || {}}
-                />
-
-                {/* Key Insights */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Key Insights</h3>
-                  <div className="space-y-3">
-                    {candidate.results.key_insights?.leadership_style && (
-                      <div>
-                        <p className="text-sm font-medium">Leadership Style:</p>
-                        <p className="text-sm text-muted-foreground">
-                          {candidate.results.key_insights.leadership_style}
-                        </p>
-                      </div>
-                    )}
-                    {candidate.results.key_insights?.commitment_level && (
-                      <div>
-                        <p className="text-sm font-medium">Commitment Level:</p>
-                        <p className="text-sm text-muted-foreground">
-                          {candidate.results.key_insights.commitment_level}
-                        </p>
-                      </div>
-                    )}
-                    {candidate.results.key_insights?.skill_readiness && (
-                      <div>
-                        <p className="text-sm font-medium">Skill Readiness:</p>
-                        <p className="text-sm text-muted-foreground">
-                          {candidate.results.key_insights.skill_readiness}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-
-                {/* Strengths */}
-                {candidate.results.key_insights?.top_strengths && (
-                  <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Top Strengths</h3>
-                    <ul className="space-y-2">
-                      {candidate.results.key_insights.top_strengths.map(
-                        (strength: string, index: number) => (
-                          <li key={index} className="text-sm flex items-start gap-2">
+                {/* Right Column - Question Responses */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Recommendations */}
+                  {candidate.results?.recommendations && (
+                    <Card className="p-6">
+                      <h2 className="text-xl font-semibold mb-4">Recommendations</h2>
+                      <ul className="space-y-2">
+                        {candidate.results.recommendations.map((rec: string, idx: number) => (
+                          <li key={idx} className="text-sm text-muted-foreground flex gap-2">
                             <span className="text-primary">•</span>
-                            {strength}
+                            {rec}
                           </li>
-                        )
-                      )}
-                    </ul>
-                  </Card>
-                )}
+                        ))}
+                      </ul>
+                    </Card>
+                  )}
 
-                {/* Development Areas */}
-                {candidate.results.key_insights?.development_areas && (
+                  {/* Scoring Breakdown */}
+                  {candidate.results?.scoring_breakdown && (
+                    <ScoringBreakdown 
+                      willScore={candidate.results.will_score}
+                      skillScore={candidate.results.skill_score}
+                      scoringBreakdown={candidate.results.scoring_breakdown}
+                    />
+                  )}
+
+                  {/* Responses */}
                   <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Development Areas</h3>
-                    <ul className="space-y-2">
-                      {candidate.results.key_insights.development_areas.map(
-                        (area: string, index: number) => (
-                          <li key={index} className="text-sm flex items-start gap-2">
-                            <span className="text-primary">•</span>
-                            {area}
-                          </li>
-                        )
-                      )}
-                    </ul>
+                    <h2 className="text-xl font-semibold mb-4">Assessment Responses</h2>
+
+                    <div className="space-y-6">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((qNum) => {
+                        const response = responseMap[qNum];
+                        if (!response) return null;
+
+                        return (
+                          <div key={qNum} className="border-b pb-4 last:border-0">
+                            <h3 className="font-medium mb-2">
+                              Q{qNum}: {response.question_text}
+                            </h3>
+                            <div className="pl-4 text-sm text-muted-foreground">
+                              {typeof response.response_data === "string" ? (
+                                <p>{response.response_data}</p>
+                              ) : (
+                                <pre className="whitespace-pre-wrap">
+                                  {JSON.stringify(response.response_data, null, 2)}
+                                </pre>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </Card>
-                )}
 
-                {/* Recommendations */}
-                {candidate.results.recommendations && (
-                  <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Growth Recommendations</h3>
-                    <ol className="space-y-3">
-                      {candidate.results.recommendations.map((rec: string, index: number) => (
-                        <li key={index} className="text-sm flex gap-3">
-                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                            {index + 1}
-                          </span>
-                          <span>{rec}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </Card>
-                )}
-              </>
-            )}
-
-            {/* Admin Notes */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Admin Notes</h3>
-              <Textarea
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                onBlur={saveNotes}
-                placeholder="Add notes about this candidate..."
-                className="min-h-[120px]"
-              />
-              {lastSaved && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Last saved: {format(lastSaved, "h:mm a")}
-                </p>
-              )}
-            </Card>
-
-            {/* AI Analysis */}
-            {candidate.results?.reasoning && (
-              <Card className="p-6">
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="ai">
-                    <AccordionTrigger>AI Analysis Details</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3">
-                        <div className="text-sm whitespace-pre-wrap">
-                          {candidate.results.reasoning}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </Card>
-            )}
-          </div>
+                  {/* AI Analysis Reasoning */}
+                  {candidate.results?.reasoning && (
+                    <Card className="p-6">
+                      <Accordion type="single" collapsible>
+                        <AccordionItem value="ai">
+                          <AccordionTrigger>AI Analysis Details</AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3">
+                              <div className="text-sm whitespace-pre-wrap">
+                                {candidate.results.reasoning}
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 

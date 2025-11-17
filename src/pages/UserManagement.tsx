@@ -15,6 +15,9 @@ import {
   Mail,
   Calendar
 } from "lucide-react";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
   Table,
   TableBody,
@@ -238,159 +241,174 @@ const UserManagement = () => {
   const availableRoles: AppRole[] = ["admin", "chair", "co_chair", "em", "user", "super_admin"];
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="h-8 w-8 text-primary" />
-            User Management
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage user roles and permissions
-          </p>
-        </div>
-        <Badge className="bg-red-600 text-white">Super Admin Only</Badge>
-      </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AdminSidebar />
+        <div className="flex-1 flex flex-col">
+          <AdminHeader breadcrumb="User Management" />
+          <main className="flex-1 overflow-auto">
+            <div className="container mx-auto p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold flex items-center gap-2">
+                    <Users className="h-8 w-8 text-primary" />
+                    User Management
+                  </h1>
+                  <p className="text-muted-foreground mt-1">
+                    Manage user roles and permissions
+                  </p>
+                </div>
+                <Badge className="bg-red-600 text-white">Super Admin Only</Badge>
+              </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Users</CardTitle>
-          <CardDescription>
-            View and manage user roles and permissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Roles</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    {user.full_name || "No name"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      {user.email}
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Users</CardTitle>
+                  <CardDescription>
+                    View and manage user roles and permissions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Roles</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">
+                            {user.full_name || "No name"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              {user.email}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 flex-wrap">
+                              {user.roles.length === 0 ? (
+                                <Badge variant="outline">No roles</Badge>
+                              ) : (
+                                user.roles.map((role) => (
+                                  <Badge
+                                    key={role}
+                                    variant={role === "super_admin" ? "default" : "secondary"}
+                                  >
+                                    {ROLE_LABELS[role]}
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              {format(new Date(user.created_at), "MMM dd, yyyy")}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openDialog(user, "assign")}
+                            >
+                              <UserPlus className="h-4 w-4 mr-1" />
+                              Assign Role
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openDialog(user, "revoke")}
+                              disabled={user.roles.length === 0}
+                            >
+                              <UserMinus className="h-4 w-4 mr-1" />
+                              Revoke Role
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      {actionType === "assign" ? "Assign Role" : "Revoke Role"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {actionType === "assign"
+                        ? `Assign a new role to ${selectedUser?.full_name || selectedUser?.email}`
+                        : `Revoke a role from ${selectedUser?.full_name || selectedUser?.email}`}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">User</label>
+                      <div className="p-3 bg-muted rounded-md">
+                        <div className="font-medium">{selectedUser?.full_name || "No name"}</div>
+                        <div className="text-sm text-muted-foreground">{selectedUser?.email}</div>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {user.roles.length === 0 ? (
-                        <Badge variant="outline">No roles</Badge>
-                      ) : (
-                        user.roles.map((role) => (
-                          <Badge
-                            key={role}
-                            variant={role === "super_admin" ? "default" : "secondary"}
-                          >
-                            {ROLE_LABELS[role]}
-                          </Badge>
-                        ))
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      {format(new Date(user.created_at), "MMM dd, yyyy")}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDialog(user, "assign")}
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        {actionType === "assign" ? "Role to Assign" : "Role to Revoke"}
+                      </label>
+                      <Select
+                        value={selectedRole || ""}
+                        onValueChange={(value) => setSelectedRole(value as AppRole)}
                       >
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        Assign Role
-                      </Button>
-                      {user.roles.length > 0 && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openDialog(user, "revoke")}
-                        >
-                          <UserMinus className="h-4 w-4 mr-1" />
-                          Revoke Role
-                        </Button>
-                      )}
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(actionType === "assign"
+                            ? availableRoles.filter((r) => !selectedUser?.roles.includes(r))
+                            : selectedUser?.roles || []
+                          ).map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {ROLE_LABELS[role]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === "assign" ? "Assign Role" : "Revoke Role"}
-            </DialogTitle>
-            <DialogDescription>
-              {actionType === "assign"
-                ? `Assign a role to ${selectedUser?.full_name || selectedUser?.email}`
-                : `Revoke a role from ${selectedUser?.full_name || selectedUser?.email}`}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            <Select
-              value={selectedRole || undefined}
-              onValueChange={(value) => setSelectedRole(value as AppRole)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {actionType === "assign"
-                  ? availableRoles
-                      .filter((role) => !selectedUser?.roles.includes(role))
-                      .map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {ROLE_LABELS[role]}
-                        </SelectItem>
-                      ))
-                  : selectedUser?.roles.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {ROLE_LABELS[role]}
-                      </SelectItem>
-                    ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={processing}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRoleAction}
-              disabled={!selectedRole || processing}
-            >
-              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {actionType === "assign" ? "Assign" : "Revoke"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setDialogOpen(false)}
+                      disabled={processing}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleRoleAction}
+                      disabled={!selectedRole || processing}
+                    >
+                      {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      {actionType === "assign" ? "Assign" : "Revoke"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
 

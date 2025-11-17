@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
   Table,
   TableBody,
@@ -182,205 +185,165 @@ const AdminScoreComparison = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Score Comparison Tool</h1>
-          <p className="text-muted-foreground">
-            Compare old vs new scoring logic and migrate existing assessments
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={reanalyzeAll} disabled={reanalyzing}>
-            {reanalyzing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Re-analyzing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Re-analyze All
-              </>
-            )}
-          </Button>
-          {comparisons.some((c) => c.analyzed) && (
-            <Button onClick={() => setShowMigrationDialog(true)} variant="default">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Confirm Migration
-            </Button>
-          )}
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AdminSidebar />
+        <div className="flex-1 flex flex-col">
+          <AdminHeader breadcrumb="Score Comparison" />
+          <main className="flex-1 overflow-auto">
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold">Score Comparison Tool</h1>
+                  <p className="text-muted-foreground">
+                    Compare old vs new scoring logic and migrate existing assessments
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={reanalyzeAll} disabled={reanalyzing}>
+                    {reanalyzing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Reanalyzing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Reanalyze All
+                      </>
+                    )}
+                  </Button>
+                  <Button onClick={() => setShowMigrationDialog(true)} disabled={migrating || reanalyzing}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Migrate to New Scores
+                  </Button>
+                </div>
+              </div>
+
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  This tool helps you test the new scoring algorithm before deploying it permanently.
+                  Click "Reanalyze All" to generate new scores (without affecting the live results).
+                  When satisfied, use "Migrate to New Scores" to make them permanent.
+                </AlertDescription>
+              </Alert>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Assessment Comparison</CardTitle>
+                  <CardDescription>
+                    Side-by-side comparison of scores under old vs new algorithm
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Candidate</TableHead>
+                        <TableHead>Old Will</TableHead>
+                        <TableHead>New Will</TableHead>
+                        <TableHead>Old Skill</TableHead>
+                        <TableHead>New Skill</TableHead>
+                        <TableHead>Old Role</TableHead>
+                        <TableHead>New Role</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {comparisons.map((comp) => (
+                        <TableRow key={comp.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{comp.user_name}</div>
+                              <div className="text-sm text-muted-foreground">{comp.user_email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{comp.old_will}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {comp.new_will ? (
+                              <div className="flex items-center gap-2">
+                                <Badge>{comp.new_will}</Badge>
+                                {getScoreChange(comp.old_will, comp.new_will)}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Not analyzed</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{comp.old_skill}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {comp.new_skill ? (
+                              <div className="flex items-center gap-2">
+                                <Badge>{comp.new_skill}</Badge>
+                                {getScoreChange(comp.old_skill, comp.new_skill)}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Not analyzed</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{comp.old_role}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {comp.new_role ? (
+                              <div className="flex items-center gap-2">
+                                <Badge>{comp.new_role}</Badge>
+                                {getRoleChange(comp.old_role, comp.new_role)}
+                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Not analyzed</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Dialog open={showMigrationDialog} onOpenChange={setShowMigrationDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Confirm Score Migration</DialogTitle>
+                    <DialogDescription>
+                      This action will permanently replace old scores with new scores for all assessments
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Warning:</strong> This action cannot be undone.
+                        All candidates will now see their updated scores and role recommendations.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowMigrationDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={migrateToNewScores} disabled={migrating}>
+                      {migrating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Migrating...
+                        </>
+                      ) : (
+                        "Confirm Migration"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </main>
         </div>
       </div>
-
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>How this works:</strong> Click "Re-analyze All" to evaluate all existing assessments with the updated scoring logic.
-          Review the changes, then click "Confirm Migration" to permanently update all records.
-        </AlertDescription>
-      </Alert>
-
-      {/* Summary Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Assessments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{comparisons.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Re-analyzed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-blue-600">
-              {comparisons.filter((c) => c.analyzed).length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Role Upgrades</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-green-600">
-              {comparisons.filter((c) => {
-                if (!c.new_role) return false;
-                const roleHierarchy = ["Active Volunteer", "Vertical Lead", "Executive Member (EM)", "Co-Chair", "Chair"];
-                return roleHierarchy.indexOf(c.new_role) > roleHierarchy.indexOf(c.old_role);
-              }).length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Avg Score Increase</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-primary">
-              {comparisons.filter(c => c.analyzed).length > 0
-                ? Math.round(
-                    comparisons
-                      .filter((c) => c.analyzed)
-                      .reduce((acc, c) => acc + ((c.new_will || 0) - c.old_will), 0) /
-                      comparisons.filter((c) => c.analyzed).length
-                  )
-                : 0}
-            </p>
-            <p className="text-sm text-muted-foreground">WILL pts</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Comparison Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detailed Comparison</CardTitle>
-          <CardDescription>
-            Old scores (left) vs New scores (right) for each candidate
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Old WILL</TableHead>
-                <TableHead>New WILL</TableHead>
-                <TableHead>Change</TableHead>
-                <TableHead>Old SKILL</TableHead>
-                <TableHead>New SKILL</TableHead>
-                <TableHead>Change</TableHead>
-                <TableHead>Old Role</TableHead>
-                <TableHead>New Role</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {comparisons.map((comparison) => (
-                <TableRow key={comparison.id}>
-                  <TableCell className="font-medium">
-                    <div>
-                      <p>{comparison.user_name}</p>
-                      <p className="text-xs text-muted-foreground">{comparison.user_email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{comparison.old_will}</TableCell>
-                  <TableCell>
-                    {comparison.new_will !== undefined ? comparison.new_will : "-"}
-                  </TableCell>
-                  <TableCell>{getScoreChange(comparison.old_will, comparison.new_will)}</TableCell>
-                  <TableCell>{comparison.old_skill}</TableCell>
-                  <TableCell>
-                    {comparison.new_skill !== undefined ? comparison.new_skill : "-"}
-                  </TableCell>
-                  <TableCell>{getScoreChange(comparison.old_skill, comparison.new_skill)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{comparison.old_role}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {comparison.new_role ? (
-                      <Badge>{comparison.new_role}</Badge>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {comparison.analyzed ? (
-                      <Badge className="bg-green-500">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Done
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Pending</Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Migration Dialog */}
-      <Dialog open={showMigrationDialog} onOpenChange={setShowMigrationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Score Migration</DialogTitle>
-            <DialogDescription>
-              This will permanently update all assessment records with the new scores. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Note:</strong> The re-analysis has already updated the database. This is just a confirmation step.
-                All candidates will now see their updated scores and role recommendations.
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMigrationDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={migrateToNewScores} disabled={migrating}>
-              {migrating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Migrating...
-                </>
-              ) : (
-                "Confirm Migration"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </SidebarProvider>
   );
 };
 
