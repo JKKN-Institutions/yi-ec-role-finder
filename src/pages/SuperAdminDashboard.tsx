@@ -9,6 +9,9 @@ import { useNavigate } from "react-router-dom";
 import { useRole } from "@/contexts/RoleContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminHeader } from "@/components/admin/AdminHeader";
 
 type SystemStats = {
   totalUsers: number;
@@ -252,184 +255,194 @@ const SuperAdminDashboard = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Shield className="h-8 w-8 text-primary" />
-            Super Admin Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            System overview and health monitoring
-          </p>
-        </div>
-        <Badge className="bg-red-600 text-white">Super Admin Only</Badge>
-      </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AdminSidebar />
+        <div className="flex-1 flex flex-col">
+          <AdminHeader breadcrumb="Super Dashboard" />
+          <main className="flex-1 overflow-auto">
+            <div className="container mx-auto p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold flex items-center gap-2">
+                    <Shield className="h-8 w-8 text-primary" />
+                    Super Admin Dashboard
+                  </h1>
+                  <p className="text-muted-foreground mt-1">
+                    System overview and health monitoring
+                  </p>
+                </div>
+                <Badge className="bg-red-600 text-white">Super Admin Only</Badge>
+              </div>
 
-      {/* Health Status */}
-      <Alert className={healthMetrics.dbConnected ? "border-green-500" : "border-red-500"}>
-        <Activity className="h-4 w-4" />
-        <AlertDescription className="flex items-center justify-between">
-          <span>
-            System Status: {healthMetrics.dbConnected ? "All Systems Operational" : "System Issues Detected"}
-          </span>
-          <div className="flex gap-2">
-            <Badge variant={healthMetrics.dbConnected ? "default" : "destructive"}>
-              Database
-            </Badge>
-            <Badge variant={healthMetrics.authActive ? "default" : "destructive"}>
-              Auth
-            </Badge>
-            <Badge variant={healthMetrics.storageActive ? "default" : "destructive"}>
-              Storage
-            </Badge>
-          </div>
-        </AlertDescription>
-      </Alert>
-
-      {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              +{stats.recentSignups} in last 7 days
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Assessments</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalAssessments}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.completedAssessments} completed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingReviews}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting admin review
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Completion</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.avgCompletionTime}</div>
-            <p className="text-xs text-muted-foreground">
-              Per assessment
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Admin & System Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Admin Team
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.totalAdmins}</div>
-            <p className="text-xs text-muted-foreground">Active administrators</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Active Roles
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.activeRoles}</div>
-            <p className="text-xs text-muted-foreground">Role assignments</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              Last Backup
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm font-bold">{healthMetrics.lastBackup}</div>
-            <p className="text-xs text-muted-foreground">System backup time</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Activity Log */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent System Activity</CardTitle>
-          <CardDescription>Latest admin actions and system events</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentActivity.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No recent activity
-              </p>
-            ) : (
-              recentActivity.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between border-b pb-3 last:border-0"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{log.admin_email}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {log.action_type.replace(/_/g, " ")}
-                    </p>
+              {/* Health Status */}
+              <Alert className={healthMetrics.dbConnected ? "border-green-500" : "border-red-500"}>
+                <Activity className="h-4 w-4" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span>
+                    System Status: {healthMetrics.dbConnected ? "All Systems Operational" : "System Issues Detected"}
+                  </span>
+                  <div className="flex gap-2">
+                    <Badge variant={healthMetrics.dbConnected ? "default" : "destructive"}>
+                      Database
+                    </Badge>
+                    <Badge variant={healthMetrics.authActive ? "default" : "destructive"}>
+                      Auth
+                    </Badge>
+                    <Badge variant={healthMetrics.storageActive ? "default" : "destructive"}>
+                      Storage
+                    </Badge>
                   </div>
-                  <div className="text-right">
+                </AlertDescription>
+              </Alert>
+
+              {/* Key Metrics */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.totalUsers}</div>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(log.created_at), "MMM dd, HH:mm")}
+                      +{stats.recentSignups} in last 7 days
                     </p>
-                    {log.details && (
-                      <Badge variant="outline" className="mt-1">
-                        {JSON.stringify(log.details).length > 50
-                          ? "View Details"
-                          : JSON.stringify(log.details)}
-                      </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Assessments</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.totalAssessments}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.completedAssessments} completed
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.pendingReviews}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Awaiting admin review
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Avg Completion</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.avgCompletionTime}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Per assessment
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Admin & System Stats */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Admin Team
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">{stats.totalAdmins}</div>
+                    <p className="text-xs text-muted-foreground">Active administrators</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Active Roles
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">{stats.activeRoles}</div>
+                    <p className="text-xs text-muted-foreground">Role assignments</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Last Backup
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm font-bold">{healthMetrics.lastBackup}</div>
+                    <p className="text-xs text-muted-foreground">System backup time</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Activity Log */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent System Activity</CardTitle>
+                  <CardDescription>Latest admin actions and system events</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {recentActivity.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No recent activity
+                      </p>
+                    ) : (
+                      recentActivity.map((log) => (
+                        <div
+                          key={log.id}
+                          className="flex items-center justify-between border-b pb-3 last:border-0"
+                        >
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">{log.admin_email}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {log.action_type.replace(/_/g, " ")}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(log.created_at), "MMM dd, HH:mm")}
+                            </p>
+                            {log.details && (
+                              <Badge variant="outline" className="mt-1">
+                                {JSON.stringify(log.details).length > 50
+                                  ? "View Details"
+                                  : JSON.stringify(log.details)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                </CardContent>
+              </Card>
 
-      {/* Test Data Seeder */}
-      <TestDataSeeder />
-    </div>
+              {/* Test Data Seeder */}
+              <TestDataSeeder />
+            </div>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
 
