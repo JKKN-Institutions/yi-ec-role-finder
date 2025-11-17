@@ -12,6 +12,7 @@ import {
   FileText,
   Shield,
   UsersRound,
+  RefreshCw,
 } from "lucide-react";
 import { useRole } from "@/contexts/RoleContext";
 import { hasPermission } from "@/lib/roleHierarchy";
@@ -36,6 +37,7 @@ const navigationItems = [
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "view_all_assessments" },
   { title: "Validation", url: "/admin/validation", icon: CheckCircle, permission: "view_all_assessments" },
   { title: "Tracking", url: "/admin/tracking", icon: Activity, permission: "view_all_assessments" },
+  { title: "Score Comparison", url: "/admin/score-comparison", icon: RefreshCw, permission: "view_all_assessments" },
   { title: "Verticals", url: "/admin/verticals", icon: Layers, permission: "manage_verticals" },
   { title: "User Roles", url: "/admin/roles", icon: UserCog, permission: "manage_roles" },
   { title: "Activity Log", url: "/admin/activity-log", icon: FileText, permission: "view_audit_logs" },
