@@ -56,42 +56,60 @@ const AdminScoreComparison = () => {
   const loadComparisons = async () => {
     setLoading(true);
     try {
-      const { data: results, error } = await supabase
+      // First get all assessment results
+      const { data: results, error: resultsError } = await supabase
         .from("assessment_results")
-        .select(`
-          id,
-          assessment_id,
-          will_score,
-          skill_score,
-          quadrant,
-          recommended_role,
-          assessments(user_name, user_email)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      console.log('Load comparisons results:', results, 'error:', error);
-
-      if (error) {
-        console.error('Error loading comparisons:', error);
-        toast({ title: "Error loading data", description: error.message, variant: "destructive" });
+      if (resultsError) {
+        console.error('Error loading results:', resultsError);
+        toast({ title: "Error loading data", description: resultsError.message, variant: "destructive" });
+        setLoading(false);
         return;
       }
 
-      if (results) {
-        console.log('Formatting results:', results);
-        const formattedData: ComparisonData[] = results.map((r: any) => ({
+      if (!results || results.length === 0) {
+        setComparisons([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get assessment IDs
+      const assessmentIds = results.map(r => r.assessment_id);
+
+      // Get corresponding assessments
+      const { data: assessments, error: assessmentsError } = await supabase
+        .from("assessments")
+        .select("id, user_name, user_email")
+        .in("id", assessmentIds);
+
+      if (assessmentsError) {
+        console.error('Error loading assessments:', assessmentsError);
+        toast({ title: "Error loading data", description: assessmentsError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      // Create a map for quick lookup
+      const assessmentMap = new Map(assessments?.map(a => [a.id, a]) || []);
+
+      // Combine the data
+      const formattedData: ComparisonData[] = results.map((r) => {
+        const assessment = assessmentMap.get(r.assessment_id);
+        return {
           id: r.assessment_id,
-          user_name: r.assessments?.user_name || "Unknown",
-          user_email: r.assessments?.user_email || "Unknown",
+          user_name: assessment?.user_name || "Unknown",
+          user_email: assessment?.user_email || "Unknown",
           old_will: r.will_score,
           old_skill: r.skill_score,
           old_quadrant: r.quadrant,
           old_role: r.recommended_role,
           analyzed: false,
-        }));
-        console.log('Formatted data:', formattedData);
-        setComparisons(formattedData);
-      }
+        };
+      });
+
+      setComparisons(formattedData);
     } catch (error: any) {
       console.error('Catch error:', error);
       toast({ title: "Error loading data", description: error.message, variant: "destructive" });
