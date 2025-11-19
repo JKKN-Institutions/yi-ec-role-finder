@@ -131,6 +131,8 @@ const Assessment = () => {
   
   // AI Help state
   const [isAiHelping, setIsAiHelping] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string>('');
+  const [showAiDialog, setShowAiDialog] = useState(false);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -396,9 +398,49 @@ const Assessment = () => {
     }
   };
 
-  const handleAiHelp = () => {
-    // TODO: Implement AI help functionality
-    toast.info("AI Help feature coming soon!");
+  const handleAiHelp = async () => {
+    const question = questionDefinitions[currentQuestion - 1];
+    
+    let currentText = '';
+    if (question.type === 'irritation-vertical') {
+      currentText = (currentResponse.partA || '') as string;
+    } else if (question.type === 'long-text') {
+      currentText = (currentResponse.response || '') as string;
+    } else if (question.type === 'radio') {
+      currentText = (currentResponse.leadershipStyle || '') as string;
+    }
+
+    setIsAiHelping(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-help-assessment', {
+        body: {
+          questionNumber: currentQuestion,
+          questionTitle: question.title,
+          questionType: question.type,
+          currentText,
+          scenario: question.type === 'long-text' ? question.scenario : undefined,
+        }
+      });
+
+      if (error) {
+        console.error('Error calling ai-help-assessment:', error);
+        throw error;
+      }
+
+      if (!data || !data.suggestions) {
+        throw new Error('No suggestions received');
+      }
+
+      // Show suggestions in a dialog
+      setAiSuggestions(data.suggestions);
+      setShowAiDialog(true);
+
+    } catch (error) {
+      console.error('Error getting AI help:', error);
+      toast.error('Failed to get AI suggestions. Please try again.');
+    } finally {
+      setIsAiHelping(false);
+    }
   };
 
   const renderQuestion = () => {
@@ -810,6 +852,31 @@ const Assessment = () => {
             )}
           </div>
         </Card>
+
+        {/* AI Help Dialog */}
+        <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                AI Writing Suggestions
+              </DialogTitle>
+              <DialogDescription>
+                Here are some suggestions to help you craft a stronger response:
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 prose prose-sm max-w-none">
+              <div className="whitespace-pre-wrap text-foreground leading-relaxed">
+                {aiSuggestions}
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowAiDialog(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
