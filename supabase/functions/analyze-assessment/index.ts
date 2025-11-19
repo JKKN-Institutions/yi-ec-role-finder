@@ -551,7 +551,7 @@ Provide:
 
     const { error: insertError } = await supabase
       .from("assessment_results")
-      .insert(resultData);
+      .upsert(resultData, { onConflict: "assessment_id" });
 
     if (insertError) {
       console.error("Error inserting results:", insertError);
