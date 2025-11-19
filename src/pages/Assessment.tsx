@@ -40,7 +40,7 @@ type Vertical = {
 };
 
 type QuestionResponse = {
-  [key: string]: string;
+  [key: string]: any;
 };
 
 const questionDefinitions = [
@@ -123,6 +123,14 @@ const Assessment = () => {
     priority2: boolean;
     priority3: boolean;
   }>({ priority1: false, priority2: false, priority3: false });
+  
+  // Q1-specific states
+  const [suggestedVerticals, setSuggestedVerticals] = useState<string[]>([]);
+  const [isAnalyzingQ1, setIsAnalyzingQ1] = useState(false);
+  const [hasAnalyzedQ1, setHasAnalyzedQ1] = useState(false);
+  
+  // AI Help state
+  const [isAiHelping, setIsAiHelping] = useState(false);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -162,6 +170,17 @@ const Assessment = () => {
         setCurrentResponse(
           responseMap[assessment.current_question] || {}
         );
+        
+        // Restore Q1 state if on question 1
+        if (assessment.current_question === 1 && responseMap[1]) {
+          const q1Response = responseMap[1];
+          if (q1Response.hasAnalyzed) {
+            setHasAnalyzedQ1(true);
+            if (q1Response.suggestedVerticals) {
+              setSuggestedVerticals(q1Response.suggestedVerticals);
+            }
+          }
+        }
       }
     };
 
@@ -178,37 +197,49 @@ const Assessment = () => {
     loadVerticals();
   }, [id, navigate]);
 
+  // Restore Q1 state when navigating between questions
+  useEffect(() => {
+    if (currentQuestion === 1 && responses[1]) {
+      const q1Response = responses[1];
+      if (q1Response.hasAnalyzed) {
+        setHasAnalyzedQ1(true);
+        if (q1Response.suggestedVerticals) {
+          setSuggestedVerticals(q1Response.suggestedVerticals);
+        }
+      }
+    } else if (currentQuestion !== 1) {
+      // Reset Q1 state when leaving question 1
+      setHasAnalyzedQ1(false);
+      setSuggestedVerticals([]);
+    }
+  }, [currentQuestion, responses]);
+
   const validateCurrentQuestion = (): boolean => {
     setValidationError("");
     const question = questionDefinitions[currentQuestion - 1];
 
-    if (question.type === "vertical-select") {
+    if (question.type === "irritation-vertical") {
+      const partAText = (currentResponse.partA || "") as string;
+      if (!partAText || partAText.length < 200) {
+        setValidationError("Part A requires at least 200 characters");
+        return false;
+      }
+      if (!hasAnalyzedQ1) {
+        setValidationError("Please click 'Analyze & Suggest Verticals' to proceed");
+        return false;
+      }
       if (!currentResponse.priority1 || !currentResponse.priority2 || !currentResponse.priority3) {
-        setValidationError("Please select all 3 priorities");
+        setValidationError("Please rank your top 3 vertical priorities");
         return false;
       }
     } else if (question.type === "long-text") {
-      const text = currentResponse.response || "";
+      const text = (currentResponse.response || "") as string;
       if (text.length < (question.minChars || 0)) {
-        setValidationError(
-          `Please write at least ${question.minChars} characters`
-        );
+        setValidationError(`Please write at least ${question.minChars} characters`);
         return false;
       }
-    } else if (question.type === "short-text") {
-      const text = currentResponse.statement || "";
-      if (text.length < (question.minChars || 0)) {
-        setValidationError(
-          `Please write at least ${question.minChars} characters`
-        );
-        return false;
-      }
-    } else if (question.type === "radio-with-text" || question.type === "radio") {
-      const value =
-        currentResponse.constraint ||
-        currentResponse.leadership_style ||
-        "";
-      if (!value) {
+    } else if (question.type === "radio") {
+      if (!currentResponse.leadershipStyle) {
         setValidationError("Please select an option");
         return false;
       }
@@ -299,6 +330,36 @@ const Assessment = () => {
     }
   };
 
+  const handleAnalyzeQ1 = async () => {
+    const partAText = (currentResponse.partA || "") as string;
+    
+    if (!partAText || partAText.length < 200) {
+      toast.error("Please write at least 200 characters before analyzing");
+      return;
+    }
+
+    setIsAnalyzingQ1(true);
+    try {
+      // TODO: Call edge function to suggest verticals based on text
+      // For now, suggest first 5 verticals as placeholder
+      const suggested = verticals.slice(0, Math.min(5, verticals.length)).map(v => v.id);
+      setSuggestedVerticals(suggested);
+      setHasAnalyzedQ1(true);
+      setCurrentResponse({ ...currentResponse, hasAnalyzed: true, suggestedVerticals: suggested });
+      toast.success("Verticals analyzed and suggested!");
+    } catch (error) {
+      console.error("Error analyzing Q1:", error);
+      toast.error("Failed to analyze. Please try again.");
+    } finally {
+      setIsAnalyzingQ1(false);
+    }
+  };
+
+  const handleAiHelp = () => {
+    // TODO: Implement AI help functionality
+    toast.info("AI Help feature coming soon!");
+  };
+
   const renderQuestion = () => {
     const question = questionDefinitions[currentQuestion - 1];
 
@@ -340,347 +401,225 @@ const Assessment = () => {
     };
 
     switch (question.type) {
-      case "vertical-select":
+      case "irritation-vertical":
+        const partAValue = (currentResponse.partA || "") as string;
         return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                {question.instructions}
-              </p>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <List className="w-4 h-4" />
-                    View All Verticals
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>All Available Verticals</DialogTitle>
-                    <DialogDescription>
-                      Review all verticals and their descriptions to make an informed choice
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-6 mt-4">
-                    {verticals.map((vertical) => (
-                      <div key={vertical.id} className="space-y-2 pb-4 border-b border-border last:border-0">
-                        <h3 className="font-semibold text-lg">{vertical.name}</h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {vertical.description}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+            {/* Part A: Problem Description */}
             <div className="space-y-4">
               <div>
-                <Label htmlFor="priority1" className="text-base font-medium">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                      1
-                    </span>
-                    First Priority (Required)
-                  </span>
-                </Label>
-                <Select
-                  value={currentResponse.priority1 || ""}
-                  onValueChange={(value) =>
-                    setCurrentResponse({ ...currentResponse, priority1: value })
-                  }
+                <h3 className="text-lg font-semibold mb-2">Part A: What irritates you?</h3>
+                <p className="text-sm text-muted-foreground mb-3">{question.partAInstructions}</p>
+              </div>
+              <Textarea
+                placeholder={question.partAPlaceholder}
+                value={partAValue}
+                onChange={(e) => setCurrentResponse({ ...currentResponse, partA: e.target.value })}
+                className="min-h-[200px]"
+                maxLength={question.partAMaxChars}
+              />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Minimum: {question.partAMinChars} characters</span>
+                <span>{partAValue.length} / {question.partAMaxChars}</span>
+              </div>
+              <Button
+                onClick={handleAnalyzeQ1}
+                disabled={isAnalyzingQ1 || partAValue.length < (question.partAMinChars || 200)}
+                className="w-full"
+              >
+                {isAnalyzingQ1 ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Analyze & Suggest Verticals
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Part B: Vertical Selection */}
+            <AnimatePresence>
+              {hasAnalyzedQ1 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-4 border-t pt-6"
                 >
-                  <SelectTrigger id="priority1" className="mt-2">
-                    <SelectValue placeholder="Select your top choice" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    <TooltipProvider>
-                      {verticals.map((v) => (
-                        <div key={v.id} className="relative group">
-                          <SelectItem value={v.id} className="pr-8">
-                            {v.name}
-                          </SelectItem>
-                          {v.description && (
-                            <Tooltip delayDuration={100}>
-                              <TooltipTrigger asChild>
-                                <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                              </TooltipTrigger>
-                              <TooltipContent side="right" className="max-w-xs">
-                                <p className="text-sm">{v.description}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      ))}
-                    </TooltipProvider>
-                  </SelectContent>
-                </Select>
-                <AnimatePresence>
-                  {currentResponse.priority1 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0, y: -10 }}
-                      animate={{ opacity: 1, height: "auto", y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -10 }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                      className="overflow-hidden"
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Part B: Select Your Priorities</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{question.partBInstructions}</p>
+                  </div>
+
+                  {/* Priority 1 */}
+                  <div>
+                    <Label htmlFor="priority1" className="font-medium">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">1</span>
+                        First Priority (Required)
+                      </span>
+                    </Label>
+                    <Select
+                      value={(currentResponse.priority1 as string) || ""}
+                      onValueChange={(value) => setCurrentResponse({ ...currentResponse, priority1: value })}
                     >
-                      <DescriptionBox 
-                        description={verticals.find((v) => v.id === currentResponse.priority1)?.description}
+                      <SelectTrigger id="priority1" className="mt-2">
+                        <SelectValue placeholder="Select your top choice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <TooltipProvider>
+                          {verticals
+                            .filter(v => suggestedVerticals.length === 0 || suggestedVerticals.includes(v.id))
+                            .map((v) => (
+                              <div key={v.id} className="relative group">
+                                <SelectItem value={v.id}>{v.name}</SelectItem>
+                                {v.description && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-xs">
+                                      <p className="text-sm">{v.description}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            ))}
+                        </TooltipProvider>
+                      </SelectContent>
+                    </Select>
+                    {currentResponse.priority1 && (
+                      <DescriptionBox
+                        description={verticals.find(v => v.id === currentResponse.priority1)?.description}
                         priorityKey="priority1"
                       />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                    )}
+                  </div>
 
-              <div>
-                <Label htmlFor="priority2" className="text-base font-medium">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                      2
-                    </span>
-                    Second Priority (Required)
-                  </span>
-                </Label>
-                <Select
-                  value={currentResponse.priority2 || ""}
-                  onValueChange={(value) =>
-                    setCurrentResponse({ ...currentResponse, priority2: value })
-                  }
-                >
-                  <SelectTrigger id="priority2" className="mt-2">
-                    <SelectValue placeholder="Select your second choice" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    <TooltipProvider>
-                      {verticals
-                        .filter((v) => v.id !== currentResponse.priority1)
-                        .map((v) => (
-                          <div key={v.id} className="relative group">
-                            <SelectItem value={v.id} className="pr-8">
-                              {v.name}
-                            </SelectItem>
-                            {v.description && (
-                              <Tooltip delayDuration={100}>
-                                <TooltipTrigger asChild>
-                                  <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                </TooltipTrigger>
-                                <TooltipContent side="right" className="max-w-xs">
-                                  <p className="text-sm">{v.description}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        ))}
-                    </TooltipProvider>
-                  </SelectContent>
-                </Select>
-                <AnimatePresence>
-                  {currentResponse.priority2 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0, y: -10 }}
-                      animate={{ opacity: 1, height: "auto", y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -10 }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                      className="overflow-hidden"
+                  {/* Priority 2 */}
+                  <div>
+                    <Label htmlFor="priority2" className="font-medium">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">2</span>
+                        Second Priority (Required)
+                      </span>
+                    </Label>
+                    <Select
+                      value={(currentResponse.priority2 as string) || ""}
+                      onValueChange={(value) => setCurrentResponse({ ...currentResponse, priority2: value })}
                     >
-                      <DescriptionBox 
-                        description={verticals.find((v) => v.id === currentResponse.priority2)?.description}
+                      <SelectTrigger id="priority2" className="mt-2">
+                        <SelectValue placeholder="Select your second choice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <TooltipProvider>
+                          {verticals
+                            .filter(v => 
+                              (suggestedVerticals.length === 0 || suggestedVerticals.includes(v.id)) && 
+                              v.id !== currentResponse.priority1
+                            )
+                            .map((v) => (
+                              <div key={v.id} className="relative group">
+                                <SelectItem value={v.id}>{v.name}</SelectItem>
+                                {v.description && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-xs">
+                                      <p className="text-sm">{v.description}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            ))}
+                        </TooltipProvider>
+                      </SelectContent>
+                    </Select>
+                    {currentResponse.priority2 && (
+                      <DescriptionBox
+                        description={verticals.find(v => v.id === currentResponse.priority2)?.description}
                         priorityKey="priority2"
                       />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                    )}
+                  </div>
 
-              <div>
-                <Label htmlFor="priority3" className="text-base font-medium">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                      3
-                    </span>
-                    Third Priority (Required)
-                  </span>
-                </Label>
-                <Select
-                  value={currentResponse.priority3 || ""}
-                  onValueChange={(value) =>
-                    setCurrentResponse({ ...currentResponse, priority3: value })
-                  }
-                >
-                  <SelectTrigger id="priority3" className="mt-2">
-                    <SelectValue placeholder="Select your third choice" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    <TooltipProvider>
-                      {verticals
-                        .filter(
-                          (v) =>
-                            v.id !== currentResponse.priority1 &&
-                            v.id !== currentResponse.priority2
-                        )
-                        .map((v) => (
-                          <div key={v.id} className="relative group">
-                            <SelectItem value={v.id} className="pr-8">
-                              {v.name}
-                            </SelectItem>
-                            {v.description && (
-                              <Tooltip delayDuration={100}>
-                                <TooltipTrigger asChild>
-                                  <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                </TooltipTrigger>
-                                <TooltipContent side="right" className="max-w-xs">
-                                  <p className="text-sm">{v.description}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        ))}
-                    </TooltipProvider>
-                  </SelectContent>
-                </Select>
-                <AnimatePresence>
-                  {currentResponse.priority3 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0, y: -10 }}
-                      animate={{ opacity: 1, height: "auto", y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -10 }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                      className="overflow-hidden"
+                  {/* Priority 3 */}
+                  <div>
+                    <Label htmlFor="priority3" className="font-medium">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">3</span>
+                        Third Priority (Required)
+                      </span>
+                    </Label>
+                    <Select
+                      value={(currentResponse.priority3 as string) || ""}
+                      onValueChange={(value) => setCurrentResponse({ ...currentResponse, priority3: value })}
                     >
-                      <DescriptionBox 
-                        description={verticals.find((v) => v.id === currentResponse.priority3)?.description}
+                      <SelectTrigger id="priority3" className="mt-2">
+                        <SelectValue placeholder="Select your third choice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <TooltipProvider>
+                          {verticals
+                            .filter(v => 
+                              (suggestedVerticals.length === 0 || suggestedVerticals.includes(v.id)) && 
+                              v.id !== currentResponse.priority1 && 
+                              v.id !== currentResponse.priority2
+                            )
+                            .map((v) => (
+                              <div key={v.id} className="relative group">
+                                <SelectItem value={v.id}>{v.name}</SelectItem>
+                                {v.description && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-xs">
+                                      <p className="text-sm">{v.description}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            ))}
+                        </TooltipProvider>
+                      </SelectContent>
+                    </Select>
+                    {currentResponse.priority3 && (
+                      <DescriptionBox
+                        description={verticals.find(v => v.id === currentResponse.priority3)?.description}
                         priorityKey="priority3"
                       />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
 
       case "long-text":
-        const longTextValue = currentResponse.response || "";
+        const longTextValue = (currentResponse.response || "") as string;
         return (
           <div className="space-y-4">
             {question.scenario && (
-              <p className="text-base bg-muted p-4 rounded-md">
-                {question.scenario}
-              </p>
+              <p className="text-base bg-muted p-4 rounded-md">{question.scenario}</p>
             )}
-            <div>
-              <Textarea
-                placeholder={question.placeholder}
-                value={longTextValue}
-                onChange={(e) =>
-                  setCurrentResponse({
-                    ...currentResponse,
-                    response: e.target.value,
-                  })
-                }
-                className="min-h-[200px] text-base"
-                maxLength={question.maxChars}
-              />
-              <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-                <span>
-                  Minimum: {question.minChars} characters
-                </span>
-                <span>
-                  {longTextValue.length} / {question.maxChars}
-                </span>
-              </div>
+            <Textarea
+              placeholder={question.placeholder}
+              value={longTextValue}
+              onChange={(e) => setCurrentResponse({ ...currentResponse, response: e.target.value })}
+              className="min-h-[200px]"
+              maxLength={question.maxChars}
+            />
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Minimum: {question.minChars} characters</span>
+              <span>{longTextValue.length} / {question.maxChars}</span>
             </div>
-          </div>
-        );
-
-      case "short-text":
-        const shortTextValue = currentResponse.statement || "";
-        return (
-          <div className="space-y-4">
-            {question.instruction && (
-              <p className="text-base font-medium">{question.instruction}</p>
-            )}
-            {question.prompt && (
-              <p className="text-base italic text-muted-foreground">
-                "{question.prompt}"
-              </p>
-            )}
-            <div>
-              <Textarea
-                placeholder={question.placeholder}
-                value={shortTextValue}
-                onChange={(e) =>
-                  setCurrentResponse({
-                    ...currentResponse,
-                    statement: e.target.value,
-                  })
-                }
-                className="min-h-[150px] text-base"
-                maxLength={question.maxChars}
-              />
-              <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-                <span>
-                  Minimum: {question.minChars} characters
-                </span>
-                <span>
-                  {shortTextValue.length} / {question.maxChars}
-                </span>
-              </div>
-            </div>
-          </div>
-        );
-
-      case "radio-with-text":
-        const needsHandling =
-          currentResponse.constraint &&
-          currentResponse.constraint !== "none";
-        return (
-          <div className="space-y-6">
-            <RadioGroup
-              value={currentResponse.constraint || ""}
-              onValueChange={(value) =>
-                setCurrentResponse({ ...currentResponse, constraint: value })
-              }
-            >
-              <div className="space-y-3">
-                {question.options?.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-3">
-                    <RadioGroupItem value={option.value} id={option.value} />
-                    <Label
-                      htmlFor={option.value}
-                      className="text-base font-normal cursor-pointer"
-                    >
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </RadioGroup>
-
-            {needsHandling && (
-              <div className="pl-7 space-y-2">
-                <Label htmlFor="handling" className="text-base">
-                  How would you handle this constraint?
-                </Label>
-                <Textarea
-                  id="handling"
-                  placeholder="What's your plan to overcome this?"
-                  value={currentResponse.handling || ""}
-                  onChange={(e) =>
-                    setCurrentResponse({
-                      ...currentResponse,
-                      handling: e.target.value,
-                    })
-                  }
-                  className="min-h-[100px]"
-                  maxLength={200}
-                />
-                <div className="text-sm text-muted-foreground text-right">
-                  {(currentResponse.handling || "").length} / 200
-                </div>
-              </div>
-            )}
           </div>
         );
 
@@ -688,31 +627,17 @@ const Assessment = () => {
         return (
           <div className="space-y-6">
             {question.scenario && (
-              <p className="text-base bg-muted p-4 rounded-md">
-                {question.scenario}
-              </p>
+              <p className="text-base bg-muted p-4 rounded-md">{question.scenario}</p>
             )}
             <RadioGroup
-              value={currentResponse.leadership_style || ""}
-              onValueChange={(value) =>
-                setCurrentResponse({
-                  ...currentResponse,
-                  leadership_style: value,
-                })
-              }
+              value={(currentResponse.leadershipStyle as string) || ""}
+              onValueChange={(value) => setCurrentResponse({ ...currentResponse, leadershipStyle: value })}
             >
               <div className="space-y-3">
                 {question.options?.map((option) => (
                   <div key={option.value} className="flex items-start space-x-3">
-                    <RadioGroupItem
-                      value={option.value}
-                      id={option.value}
-                      className="mt-1"
-                    />
-                    <Label
-                      htmlFor={option.value}
-                      className="text-base font-normal cursor-pointer leading-relaxed"
-                    >
+                    <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
+                    <Label htmlFor={option.value} className="text-base font-normal cursor-pointer leading-relaxed">
                       {option.label}
                     </Label>
                   </div>
@@ -764,9 +689,27 @@ const Assessment = () => {
         </div>
 
         <Card className="p-4 md:p-8 shadow-lg">
-          <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6" role="heading" aria-level={2}>
-            {currentQ?.title}
-          </h2>
+          <div className="flex items-start justify-between mb-4 md:mb-6">
+            <h2 className="text-xl md:text-2xl font-semibold" role="heading" aria-level={2}>
+              {currentQ?.title}
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAiHelp}
+              disabled={isAiHelping}
+              className="ml-4"
+            >
+              {isAiHelping ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  AI Help
+                </>
+              )}
+            </Button>
+          </div>
           
           <div className="min-h-[200px]" role="main" aria-label={`Question ${currentQuestion} of 5`}>
             {renderQuestion()}
