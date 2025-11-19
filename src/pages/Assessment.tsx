@@ -809,40 +809,37 @@ const Assessment = () => {
             </div>
           )}
 
-          <div className="mobile-footer mt-4 md:mt-6 flex flex-col sm:flex-row justify-between gap-2">
+          <div className="mobile-footer mt-4 md:mt-6 flex flex-row justify-between gap-2">
             <Button
               variant="outline"
-              size="sm"
               onClick={handlePrevious}
               disabled={currentQuestion === 1}
-              className="btn-mobile w-full sm:w-auto text-sm"
+              className="btn-mobile h-8 px-3 text-xs"
               aria-label="Go to previous question"
             >
-              <ArrowLeft className="mr-2 h-3 w-3" aria-hidden="true" />
+              <ArrowLeft className="mr-1 h-3 w-3" aria-hidden="true" />
               Previous
             </Button>
 
             {currentQuestion < 5 ? (
               <Button 
                 onClick={handleNext}
-                size="sm"
-                className="btn-mobile w-full sm:w-auto text-sm"
+                className="btn-mobile h-8 px-3 text-xs"
                 aria-label="Go to next question"
               >
                 Next
-                <ArrowRight className="ml-2 h-3 w-3" aria-hidden="true" />
+                <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
               </Button>
             ) : (
               <Button 
                 onClick={handleSubmit}
-                size="sm"
                 disabled={isSubmitting} 
-                className="btn-mobile w-full sm:w-auto text-sm"
+                className="btn-mobile h-8 px-3 text-xs"
                 aria-label="Submit assessment"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" />
                     Submitting...
                   </>
                 ) : (
