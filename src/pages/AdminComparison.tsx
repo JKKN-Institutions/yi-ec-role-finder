@@ -449,17 +449,90 @@ const AdminComparison = () => {
                     <div className="grid gap-4 md:grid-cols-2">
                       {selectedCandidates.map((candidate) => {
                         const response = candidate.responses.find(r => r.question_number === qNum);
+                        const hasAdaptation = response?.adapted_question_text;
+                        
                         return (
                           <Card key={candidate.assessment.id}>
                             <CardHeader>
                               <CardTitle className="text-base">{candidate.assessment.user_name}</CardTitle>
+                              {response && (
+                                <CardDescription className="text-xs mt-1">
+                                  {response.question_text}
+                                </CardDescription>
+                              )}
                             </CardHeader>
                             <CardContent>
                               {response && (
-                                <div className="space-y-2">
-                                  <p className="text-sm whitespace-pre-wrap">
-                                    {JSON.stringify(response.response_data, null, 2)}
-                                  </p>
+                                <div className="space-y-4">
+                                  {/* Show question adaptation info */}
+                                  {hasAdaptation && (
+                                    <div className="space-y-3 pb-4 border-b">
+                                      <div className="flex items-center gap-2 text-sm text-primary font-medium">
+                                        <Sparkles className="w-4 h-4" />
+                                        <span>Personalized Question</span>
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <div>
+                                          <p className="text-xs font-medium text-muted-foreground mb-1">Original Question:</p>
+                                          <p className="text-sm bg-muted/50 p-2 rounded">
+                                            {(() => {
+                                              const defaultQuestions: Record<number, string> = {
+                                                2: "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described in Q1. Design your initiative...",
+                                                3: "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event...'",
+                                                4: "Describe your most significant achievement in the last 2 years - something you're genuinely proud of...",
+                                                5: "Your team misses a critical deadline. What's your first instinct?"
+                                              };
+                                              return defaultQuestions[qNum] || "Default question";
+                                            })()}
+                                          </p>
+                                        </div>
+                                        
+                                        <div>
+                                          <p className="text-xs font-medium text-muted-foreground mb-1">What They Saw (Adapted):</p>
+                                          <p className="text-sm bg-primary/5 border border-primary/20 p-2 rounded">
+                                            {response.adapted_question_text}
+                                          </p>
+                                        </div>
+                                        
+                                        {response.adaptation_context && (
+                                          <div>
+                                            <p className="text-xs font-medium text-muted-foreground mb-1">Context Used:</p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {response.adaptation_context.contextSummary}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Response data */}
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-2">Response:</p>
+                                    <div className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded">
+                                      {(() => {
+                                        const data = response.response_data as any;
+                                        if (qNum === 1) {
+                                          return (
+                                            <div className="space-y-2">
+                                              <p><strong>Problem:</strong> {data.partA}</p>
+                                              <p><strong>Verticals Selected:</strong></p>
+                                              <ol className="list-decimal ml-4">
+                                                {data.selectedVerticals?.map((v: any, i: number) => (
+                                                  <li key={i}>{v.name}</li>
+                                                ))}
+                                              </ol>
+                                            </div>
+                                          );
+                                        } else if (qNum === 5) {
+                                          return <p>{data.leadershipStyle}</p>;
+                                        } else {
+                                          return <p>{data.response}</p>;
+                                        }
+                                      })()}
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </CardContent>

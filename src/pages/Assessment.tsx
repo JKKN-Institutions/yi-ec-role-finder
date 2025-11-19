@@ -289,9 +289,9 @@ const Assessment = () => {
   };
 
   const adaptQuestion = async (questionNumber: number) => {
-    // Only adapt Q2, Q3, and Q4
-    if ((questionNumber !== 2 && questionNumber !== 3 && questionNumber !== 4) || adaptedQuestions[questionNumber]) {
-      return; // Skip if not Q2/Q3/Q4 or already adapted
+    // Only adapt Q2, Q3, Q4, and Q5
+    if ((questionNumber !== 2 && questionNumber !== 3 && questionNumber !== 4 && questionNumber !== 5) || adaptedQuestions[questionNumber]) {
+      return; // Skip if not Q2/Q3/Q4/Q5 or already adapted
     }
 
     setIsAdaptingQuestion(true);
@@ -423,6 +423,36 @@ const Assessment = () => {
           toast.success('Question personalized to focus on relevant skills');
         }
       }
+      
+      // Q5 adaptation
+      if (questionNumber === 5) {
+        if (!q2Response || !q2Response.response) {
+          console.log('Q2 response not available, using default Q5');
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('generate-adaptive-question', {
+          body: {
+            questionNumber: 5,
+            previousResponses: {
+              q2_initiative: q2Response.response,
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        if (data && data.success) {
+          setAdaptedQuestions(prev => ({
+            ...prev,
+            [questionNumber]: {
+              scenario: data.adaptedScenario,
+              contextSummary: data.contextSummary,
+            }
+          }));
+          toast.success('Leadership scenario personalized to your initiative');
+        }
+      }
     } catch (error) {
       console.error('Failed to adapt question:', error);
       // Silently fall back to default question
@@ -439,8 +469,8 @@ const Assessment = () => {
     if (currentQuestion < 5) {
       const nextQuestion = currentQuestion + 1;
       
-      // Adapt the next question before showing it (Q2, Q3, Q4)
-      if (nextQuestion === 2 || nextQuestion === 3 || nextQuestion === 4) {
+      // Adapt the next question before showing it (Q2, Q3, Q4, Q5)
+      if (nextQuestion === 2 || nextQuestion === 3 || nextQuestion === 4 || nextQuestion === 5) {
         await adaptQuestion(nextQuestion);
       }
       
@@ -901,10 +931,27 @@ const Assessment = () => {
         );
 
       case "radio":
+        const radioAdaptedScenario = adaptedQuestions[currentQuestion]?.scenario;
+        const radioContextSummary = adaptedQuestions[currentQuestion]?.contextSummary;
+        
         return (
           <div className="space-y-6">
-            {question.scenario && (
-              <p className="text-base bg-muted p-4 rounded-md">{question.scenario}</p>
+            {/* Show context indicator if question is adapted */}
+            {radioAdaptedScenario && radioContextSummary && (
+              <div className="bg-primary/10 p-3 rounded-lg text-sm border border-primary/20">
+                <div className="flex items-center gap-2 text-primary font-medium mb-1">
+                  <Sparkles className="w-4 h-4" />
+                  Personalized for you
+                </div>
+                <p className="text-muted-foreground">
+                  This scenario is based on your <strong>{radioContextSummary}</strong> initiative.
+                </p>
+              </div>
+            )}
+            {(radioAdaptedScenario || question.scenario) && (
+              <p className="text-base bg-muted p-4 rounded-md">
+                {radioAdaptedScenario || question.scenario}
+              </p>
             )}
             <RadioGroup
               value={(currentResponse.leadershipStyle as string) || ""}
