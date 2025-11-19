@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.suggest-verticals]
 verify_jwt = false
+
+[functions.ai-help-assessment]
+verify_jwt = false
