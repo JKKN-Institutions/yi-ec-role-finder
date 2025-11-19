@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Search, Eye, Filter, RefreshCw, TrendingUp } from "lucide-react";
+import { Loader2, Search, Eye, Filter, RefreshCw, TrendingUp, CheckSquare, Square } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CandidateTagManager } from "@/components/admin/CandidateTagManager";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
 interface Candidate {
   id: string;
@@ -34,6 +36,8 @@ const AdminCandidates = () => {
   const [reviewFilter, setReviewFilter] = useState<string>("all");
   const [quadrantFilter, setQuadrantFilter] = useState<string>("all");
   const [reanalyzing, setReanalyzing] = useState<string | null>(null);
+  const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   useEffect(() => {
     // Apply URL params on mount
@@ -151,6 +155,66 @@ const AdminCandidates = () => {
     return matchesSearch && matchesStatus && matchesReview && matchesQuadrant;
   });
 
+  const toggleSelectAll = () => {
+    if (selectedCandidates.size === filteredCandidates.length) {
+      setSelectedCandidates(new Set());
+    } else {
+      setSelectedCandidates(new Set(filteredCandidates.map(c => c.id)));
+    }
+  };
+
+  const toggleSelectCandidate = (candidateId: string) => {
+    const newSelected = new Set(selectedCandidates);
+    if (newSelected.has(candidateId)) {
+      newSelected.delete(candidateId);
+    } else {
+      newSelected.add(candidateId);
+    }
+    setSelectedCandidates(newSelected);
+  };
+
+  const handleBulkShortlist = async () => {
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("assessments")
+        .update({ is_shortlisted: true, review_status: "reviewed" })
+        .in("id", Array.from(selectedCandidates));
+
+      if (error) throw error;
+
+      toast.success(`${selectedCandidates.size} candidates shortlisted`);
+      setSelectedCandidates(new Set());
+      await loadCandidates();
+    } catch (error) {
+      console.error("Error bulk shortlisting:", error);
+      toast.error("Failed to shortlist candidates");
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("assessments")
+        .update({ review_status: "rejected", is_shortlisted: false })
+        .in("id", Array.from(selectedCandidates));
+
+      if (error) throw error;
+
+      toast.success(`${selectedCandidates.size} candidates rejected`);
+      setSelectedCandidates(new Set());
+      await loadCandidates();
+    } catch (error) {
+      console.error("Error bulk rejecting:", error);
+      toast.error("Failed to reject candidates");
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -233,11 +297,58 @@ const AdminCandidates = () => {
         </CardContent>
       </Card>
 
+      {selectedCandidates.size > 0 && (
+        <Card className="border-primary">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <span className="font-medium">{selectedCandidates.size} selected</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleBulkShortlist}
+                  disabled={bulkActionLoading}
+                >
+                  {bulkActionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Shortlist
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleBulkReject}
+                  disabled={bulkActionLoading}
+                >
+                  {bulkActionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Reject
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setSelectedCandidates(new Set())}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedCandidates.size === filteredCandidates.length && filteredCandidates.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Status</TableHead>
@@ -251,13 +362,19 @@ const AdminCandidates = () => {
             <TableBody>
               {filteredCandidates.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No candidates found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredCandidates.map((candidate) => (
                   <TableRow key={candidate.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedCandidates.has(candidate.id)}
+                        onCheckedChange={() => toggleSelectCandidate(candidate.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {candidate.user_name}
