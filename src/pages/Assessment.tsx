@@ -131,6 +131,15 @@ const Assessment = () => {
   
   // AI Help state
   const [isAiHelping, setIsAiHelping] = useState(false);
+  
+  // Adaptive questions state
+  const [adaptedQuestions, setAdaptedQuestions] = useState<{
+    [key: number]: {
+      scenario: string;
+      contextSummary: string;
+    };
+  }>({});
+  const [isAdaptingQuestion, setIsAdaptingQuestion] = useState(false);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -270,6 +279,64 @@ const Assessment = () => {
     }
   };
 
+  const adaptQuestion = async (questionNumber: number) => {
+    // Only adapt Q2 for now (Step 1 implementation)
+    if (questionNumber !== 2 || adaptedQuestions[questionNumber]) {
+      return; // Skip if not Q2 or already adapted
+    }
+
+    setIsAdaptingQuestion(true);
+    try {
+      // Gather Q1 responses
+      const q1Response = responses[1];
+      if (!q1Response || !q1Response.partA) {
+        console.log('Q1 responses not available, using default Q2');
+        return;
+      }
+
+      // Get selected vertical names
+      const selectedVerticalIds = [
+        q1Response.priority1,
+        q1Response.priority2,
+        q1Response.priority3,
+      ].filter(Boolean);
+      
+      const selectedVerticalNames = verticals
+        .filter(v => selectedVerticalIds.includes(v.id))
+        .map(v => v.name);
+
+      const { data, error } = await supabase.functions.invoke('generate-adaptive-question', {
+        body: {
+          questionNumber: 2,
+          previousResponses: {
+            q1_part_a: q1Response.partA,
+            q1_verticals: selectedVerticalNames,
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data && data.success) {
+        setAdaptedQuestions(prev => ({
+          ...prev,
+          [questionNumber]: {
+            scenario: data.adaptedScenario,
+            contextSummary: data.contextSummary,
+          }
+        }));
+        toast.success('Question personalized based on your Q1 response');
+      } else {
+        console.log('Adaptation failed, using default Q2');
+      }
+    } catch (error) {
+      console.error('Failed to adapt question:', error);
+      // Silently fall back to default question
+    } finally {
+      setIsAdaptingQuestion(false);
+    }
+  };
+
   const handleNext = async () => {
     if (!validateCurrentQuestion()) return;
 
@@ -277,6 +344,12 @@ const Assessment = () => {
 
     if (currentQuestion < 5) {
       const nextQuestion = currentQuestion + 1;
+      
+      // Adapt the next question before showing it (only Q2 for now)
+      if (nextQuestion === 2) {
+        await adaptQuestion(nextQuestion);
+      }
+      
       setCurrentQuestion(nextQuestion);
       setCurrentResponse(responses[nextQuestion] || {});
       setValidationError("");
@@ -697,10 +770,27 @@ const Assessment = () => {
 
       case "long-text":
         const longTextValue = (currentResponse.response || "") as string;
+        const adaptedScenario = adaptedQuestions[currentQuestion]?.scenario;
+        const contextSummary = adaptedQuestions[currentQuestion]?.contextSummary;
+        
         return (
           <div className="space-y-4">
-            {question.scenario && (
-              <p className="text-base bg-muted p-4 rounded-md">{question.scenario}</p>
+            {/* Show context indicator if question is adapted */}
+            {adaptedScenario && contextSummary && (
+              <div className="bg-primary/10 p-3 rounded-lg text-sm border border-primary/20">
+                <div className="flex items-center gap-2 text-primary font-medium mb-1">
+                  <Sparkles className="w-4 h-4" />
+                  Personalized for you
+                </div>
+                <p className="text-muted-foreground">
+                  This question references your concern about <strong>{contextSummary}</strong>.
+                </p>
+              </div>
+            )}
+            {(adaptedScenario || question.scenario) && (
+              <p className="text-base bg-muted p-4 rounded-md">
+                {adaptedScenario || question.scenario}
+              </p>
             )}
             <Textarea
               placeholder={question.placeholder}
@@ -805,6 +895,12 @@ const Assessment = () => {
           </div>
           
           <div className="min-h-[200px]" role="main" aria-label={`Question ${currentQuestion} of 5`}>
+            {isAdaptingQuestion && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4 p-4 bg-muted/50 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Personalizing your question based on your previous answers...
+              </div>
+            )}
             {renderQuestion()}
           </div>
 
