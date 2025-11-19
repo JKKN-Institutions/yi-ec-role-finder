@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Search, Eye, Filter, RefreshCw, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CandidateTagManager } from "@/components/admin/CandidateTagManager";
 
 interface Candidate {
   id: string;
@@ -206,6 +207,7 @@ const AdminCandidates = () => {
                 <TableHead>Status</TableHead>
                 <TableHead>Review</TableHead>
                 <TableHead>Recommended Role</TableHead>
+                <TableHead>Tags</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -213,7 +215,7 @@ const AdminCandidates = () => {
             <TableBody>
               {filteredCandidates.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No candidates found
                   </TableCell>
                 </TableRow>
@@ -243,6 +245,12 @@ const AdminCandidates = () => {
                       {candidate.recommended_role || (
                         <span className="text-muted-foreground">N/A</span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <CandidateTagManager 
+                        assessmentId={candidate.id}
+                        onTagsChange={loadCandidates}
+                      />
                     </TableCell>
                     <TableCell>
                       {format(new Date(candidate.created_at), "MMM dd, yyyy")}
