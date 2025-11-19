@@ -17,6 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { ActiveAdminsWidget } from "./ActiveAdminsWidget";
 import { TestAssessmentSeeder } from "./TestAssessmentSeeder";
+import { TestDataCleanup } from "./TestDataCleanup";
 
 interface Stats {
   totalAssessments: number;
@@ -436,7 +437,8 @@ export function AdminOverview() {
       </Card>
 
       {/* Test Assessment Generator */}
-      <TestAssessmentSeeder />
+          <TestAssessmentSeeder />
+          <TestDataCleanup />
     </div>
   );
 }

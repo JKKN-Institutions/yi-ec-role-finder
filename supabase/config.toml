@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.seed-test-assessments]
 verify_jwt = true
+
+[functions.cleanup-test-assessments]
+verify_jwt = false
+
+[functions.compare-candidates]
+verify_jwt = false
