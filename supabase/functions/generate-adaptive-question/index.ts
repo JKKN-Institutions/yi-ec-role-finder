@@ -16,19 +16,19 @@ serve(async (req) => {
 
     console.log('Adapting question:', { questionNumber, previousResponses });
 
-    // Support Q2 and Q3 adaptation
-    if (questionNumber !== 2 && questionNumber !== 3) {
+    // Support Q2, Q3, and Q4 adaptation
+    if (questionNumber !== 2 && questionNumber !== 3 && questionNumber !== 4) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Only Q2 and Q3 adaptation is supported in this version' 
+          error: 'Only Q2, Q3, and Q4 adaptation is supported in this version' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Validate required data based on question number
-    const { q1_part_a, q1_verticals, q2_initiative } = previousResponses || {};
+    const { q1_part_a, q1_verticals, q2_initiative, q3_crisis } = previousResponses || {};
     
     if (questionNumber === 2) {
       if (!q1_part_a || !q1_verticals || q1_verticals.length === 0) {
@@ -54,6 +54,18 @@ serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+    } else if (questionNumber === 4) {
+      if (!q1_part_a || !q2_initiative) {
+        console.log('Missing Q1/Q2 data for Q4, returning default');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing Q1/Q2 responses for Q4 adaptation',
+            useDefault: true 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -70,8 +82,13 @@ serve(async (req) => {
     if (questionNumber === 3) {
       return await adaptQ3(q1_part_a!, q1_verticals || [], q2_initiative!, LOVABLE_API_KEY, corsHeaders);
     }
+    
+    // Handle Q4 adaptation
+    if (questionNumber === 4) {
+      return await adaptQ4(q1_part_a!, q1_verticals || [], q2_initiative!, LOVABLE_API_KEY, corsHeaders);
+    }
 
-    // Fallback if neither Q2 nor Q3
+    // Fallback if not Q2, Q3, or Q4
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -335,6 +352,148 @@ Respond with ONLY the adapted question text, nothing else.`
       contextSummary: initiativeSummary,
       problemSummary,
       primaryVertical
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Q4 Adaptation: Ask for achievements relevant to their problem/initiative type
+async function adaptQ4(
+  problemText: string,
+  verticals: string[],
+  initiativeText: string,
+  apiKey: string,
+  corsHeaders: Record<string, string>
+) {
+  console.log('Adapting Q4 based on Q1 and Q2...');
+
+  // Step 1: Determine the type of work/domain from Q1 and Q2
+  const domainResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at identifying work domains and skill areas. Extract 2-4 relevant domains/skill areas that would be most relevant for demonstrating past achievements.'
+        },
+        {
+          role: 'user',
+          content: `Based on this problem: "${problemText.substring(0, 400)}"
+And this initiative: "${initiativeText.substring(0, 400)}"
+
+What 2-4 domains or skill areas would be most relevant for this person to highlight in past achievements? 
+
+Examples: "community organizing", "environmental action", "youth engagement", "digital literacy", "health awareness", "infrastructure advocacy", "education programs"
+
+Respond with ONLY a comma-separated list of 2-4 domains, nothing else.`
+        }
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!domainResponse.ok) {
+    const errorText = await domainResponse.text();
+    console.error('Failed to extract domains:', domainResponse.status, errorText);
+    throw new Error('Failed to extract domains');
+  }
+
+  const domainData = await domainResponse.json();
+  const relevantDomains = domainData.choices[0].message.content.trim();
+  console.log('Extracted relevant domains:', relevantDomains);
+
+  // Step 2: Extract problem summary for context
+  const problemSummaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'Extract a 2-5 word problem summary.'
+        },
+        {
+          role: 'user',
+          content: `Extract a 2-5 word problem summary: "${problemText.substring(0, 300)}"`
+        }
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  const problemSummaryData = await problemSummaryResponse.json();
+  const problemSummary = problemSummaryData.choices[0].message.content.trim();
+
+  // Step 3: Generate adapted Q4 scenario
+  const defaultQ4 = "Describe your most significant achievement in the last 2 years - something you're genuinely proud of (can be academic, personal, volunteer, or professional). What did you do, what obstacles did you face, and what was the outcome?";
+
+  const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized questions that guide them to share relevant achievements while maintaining the SKILL assessment criteria.'
+        },
+        {
+          role: 'user',
+          content: `Original Q4: "${defaultQ4}"
+
+Context from previous questions:
+- Problem they care about: ${problemSummary}
+- Relevant skill domains: ${relevantDomains}
+- Selected verticals: ${verticals.join(', ')}
+
+Generate an adapted Q4 that:
+1. Acknowledges their passion for ${problemSummary}
+2. References their initiative design showing interest in ${relevantDomains}
+3. Asks for a significant achievement that demonstrates relevant execution skills
+4. Specifically suggests looking for achievements in: ${relevantDomains}
+5. Maintains the core criteria: what they did, obstacles faced, outcomes achieved
+6. Still allows achievements from any domain (academic, personal, volunteer, professional)
+7. Total length should be 150-180 words
+
+Example structure:
+"You've shown passion for ${problemSummary} and designed an initiative involving ${relevantDomains}. Now share a past achievement that demonstrates you can actually execute complex plans - ideally related to ${relevantDomains.split(',')[0]}, or any area where you've delivered tangible results. What obstacles did you overcome?"
+
+Respond with ONLY the adapted question text, nothing else.`
+        }
+      ],
+      temperature: 0.5,
+    }),
+  });
+
+  if (!adaptationResponse.ok) {
+    const errorText = await adaptationResponse.text();
+    console.error('Failed to generate Q4 adapted scenario:', adaptationResponse.status, errorText);
+    throw new Error('Failed to generate Q4 adapted scenario');
+  }
+
+  const adaptationData = await adaptationResponse.json();
+  const adaptedScenario = adaptationData.choices[0].message.content.trim();
+  console.log('Generated Q4 adapted scenario:', adaptedScenario.substring(0, 100) + '...');
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      adaptedScenario,
+      contextSummary: relevantDomains,
+      problemSummary,
+      verticals
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );

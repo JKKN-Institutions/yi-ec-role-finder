@@ -79,6 +79,8 @@ export type Database = {
       }
       assessment_responses: {
         Row: {
+          adaptation_context: Json | null
+          adapted_question_text: string | null
           assessment_id: string
           created_at: string
           id: string
@@ -87,6 +89,8 @@ export type Database = {
           response_data: Json
         }
         Insert: {
+          adaptation_context?: Json | null
+          adapted_question_text?: string | null
           assessment_id: string
           created_at?: string
           id?: string
@@ -95,6 +99,8 @@ export type Database = {
           response_data: Json
         }
         Update: {
+          adaptation_context?: Json | null
+          adapted_question_text?: string | null
           assessment_id?: string
           created_at?: string
           id?: string
