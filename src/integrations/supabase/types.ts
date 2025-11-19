@@ -189,6 +189,42 @@ export type Database = {
           },
         ]
       }
+      assessment_tags: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_tags_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessments: {
         Row: {
           admin_notes: string | null
@@ -325,6 +361,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      candidate_tags: {
+        Row: {
+          category: string
+          color: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       chapters: {
         Row: {

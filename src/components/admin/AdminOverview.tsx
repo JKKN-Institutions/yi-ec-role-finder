@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { ActiveAdminsWidget } from "./ActiveAdminsWidget";
 import { TestAssessmentSeeder } from "./TestAssessmentSeeder";
 import { TestDataCleanup } from "./TestDataCleanup";
+import { AnalyticsWidget } from "./AnalyticsWidget";
 
 interface Stats {
   totalAssessments: number;
@@ -291,8 +292,11 @@ export function AdminOverview() {
         </Card>
       </div>
 
-      {/* Real-time Active Admins and Recent Actions */}
-      <ActiveAdminsWidget />
+      {/* Real-time Active Admins and Analytics */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <ActiveAdminsWidget />
+        <AnalyticsWidget />
+      </div>
 
       {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2">
