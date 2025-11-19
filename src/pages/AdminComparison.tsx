@@ -144,19 +144,36 @@ const AdminComparison = () => {
   const getRadarData = () => {
     if (selectedCandidates.length === 0) return [];
 
-    const dimensions = ["Commitment", "Strategic", "Communication", "Execution", "Leadership"];
-    
-    return dimensions.map(dim => {
-      const dataPoint: any = { dimension: dim };
-      selectedCandidates.forEach((c, idx) => {
-        // Mock scoring based on WILL/SKILL - in real app, extract from AI insights
-        const score = dim === "Commitment" ? c.result.will_score :
-                      dim === "Execution" ? c.result.skill_score :
-                      (c.result.will_score + c.result.skill_score) / 2;
-        dataPoint[`Candidate ${idx + 1}`] = score;
-      });
-      return dataPoint;
-    });
+    return [
+      {
+        dimension: "Personal\nOwnership",
+        ...selectedCandidates.reduce((acc, c, idx) => ({
+          ...acc,
+          [`Candidate ${idx + 1}`]: c.result.personal_ownership_score || 0,
+        }), {}),
+      },
+      {
+        dimension: "Impact\nReadiness",
+        ...selectedCandidates.reduce((acc, c, idx) => ({
+          ...acc,
+          [`Candidate ${idx + 1}`]: c.result.impact_readiness_score || 0,
+        }), {}),
+      },
+      {
+        dimension: "WILL",
+        ...selectedCandidates.reduce((acc, c, idx) => ({
+          ...acc,
+          [`Candidate ${idx + 1}`]: c.result.will_score,
+        }), {}),
+      },
+      {
+        dimension: "SKILL",
+        ...selectedCandidates.reduce((acc, c, idx) => ({
+          ...acc,
+          [`Candidate ${idx + 1}`]: c.result.skill_score,
+        }), {}),
+      },
+    ];
   };
 
   const filteredCandidates = candidates.filter(c =>
@@ -348,17 +365,31 @@ const AdminComparison = () => {
                     <div className="space-y-2">
                       <div>
                         <div className="flex justify-between text-sm mb-1">
+                          <span>Personal Ownership</span>
+                          <span className="font-semibold">{candidate.result.personal_ownership_score || 0}/100</span>
+                        </div>
+                        <Progress value={candidate.result.personal_ownership_score || 0} className="bg-purple-200" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>Impact Readiness</span>
+                          <span className="font-semibold">{candidate.result.impact_readiness_score || 0}/100</span>
+                        </div>
+                        <Progress value={candidate.result.impact_readiness_score || 0} className="bg-blue-200" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
                           <span>WILL</span>
                           <span className="font-semibold">{candidate.result.will_score}/100</span>
                         </div>
-                        <Progress value={candidate.result.will_score} className="bg-purple-200" />
+                        <Progress value={candidate.result.will_score} className="bg-green-200" />
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>SKILL</span>
                           <span className="font-semibold">{candidate.result.skill_score}/100</span>
                         </div>
-                        <Progress value={candidate.result.skill_score} className="bg-blue-200" />
+                        <Progress value={candidate.result.skill_score} className="bg-orange-200" />
                       </div>
                     </div>
                     <div>

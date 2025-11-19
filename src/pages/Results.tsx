@@ -20,11 +20,15 @@ import {
   Star,
   CheckCircle2,
 } from "lucide-react";
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
 import confetti from "canvas-confetti";
 
 type AssessmentResult = {
   will_score: number;
   skill_score: number;
+  personal_ownership_score: number | null;
+  impact_readiness_score: number | null;
+  execution_capability_score: number | null;
   quadrant: string;
   recommended_role: string;
   role_explanation: string;
@@ -34,6 +38,8 @@ type AssessmentResult = {
   key_insights: any;
   reasoning: string | null;
   scoring_breakdown: any;
+  key_strengths: any;
+  development_areas: any;
 };
 
 type Vertical = {
@@ -51,6 +57,8 @@ const Results = () => {
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [animatedWill, setAnimatedWill] = useState(0);
   const [animatedSkill, setAnimatedSkill] = useState(0);
+  const [animatedPersonalOwnership, setAnimatedPersonalOwnership] = useState(0);
+  const [animatedImpactReadiness, setAnimatedImpactReadiness] = useState(0);
 
   useEffect(() => {
     const checkAdminAccess = async () => {
@@ -113,16 +121,22 @@ const Results = () => {
         // Animate scores
         const willTarget = resultData.will_score;
         const skillTarget = resultData.skill_score;
+        const personalOwnershipTarget = resultData.personal_ownership_score || 0;
+        const impactReadinessTarget = resultData.impact_readiness_score || 0;
         const duration = 1500;
         const steps = 60;
         const willStep = willTarget / steps;
         const skillStep = skillTarget / steps;
+        const personalOwnershipStep = personalOwnershipTarget / steps;
+        const impactReadinessStep = impactReadinessTarget / steps;
 
         let currentStep = 0;
         const interval = setInterval(() => {
           currentStep++;
           setAnimatedWill(Math.min(Math.round(willStep * currentStep), willTarget));
           setAnimatedSkill(Math.min(Math.round(skillStep * currentStep), skillTarget));
+          setAnimatedPersonalOwnership(Math.min(Math.round(personalOwnershipStep * currentStep), personalOwnershipTarget));
+          setAnimatedImpactReadiness(Math.min(Math.round(impactReadinessStep * currentStep), impactReadinessTarget));
 
           if (currentStep >= steps) {
             clearInterval(interval);
@@ -221,38 +235,89 @@ const Results = () => {
             {userName}'s Leadership Profile
           </h1>
 
-          {/* Animated Scores */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            <Card className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-medium">WILL Score</span>
-                <span className="text-4xl font-bold text-primary">
-                  {animatedWill}
-                </span>
+          {/* 4D Score Visualization */}
+          <Card className="p-8">
+            <h2 className="text-2xl font-bold mb-6 text-center">Leadership Profile</h2>
+            <div className="grid lg:grid-cols-2 gap-8 items-center">
+              {/* Radar Chart */}
+              <div className="h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={[
+                    { dimension: 'Personal\nOwnership', score: animatedPersonalOwnership },
+                    { dimension: 'Impact\nReadiness', score: animatedImpactReadiness },
+                    { dimension: 'WILL', score: animatedWill },
+                    { dimension: 'SKILL', score: animatedSkill },
+                  ]}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="dimension" />
+                    <PolarRadiusAxis domain={[0, 100]} />
+                    <Radar
+                      name={userName}
+                      dataKey="score"
+                      stroke="hsl(var(--primary))"
+                      fill="hsl(var(--primary))"
+                      fillOpacity={0.5}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
               </div>
-              <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-1000"
-                  style={{ width: `${animatedWill}%` }}
-                />
-              </div>
-            </Card>
 
-            <Card className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-medium">SKILL Score</span>
-                <span className="text-4xl font-bold text-blue-600">
-                  {animatedSkill}
-                </span>
+              {/* Score Details */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Personal Ownership</span>
+                    <span className="text-2xl font-bold text-primary">{animatedPersonalOwnership}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-1000"
+                      style={{ width: `${animatedPersonalOwnership}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Impact Readiness</span>
+                    <span className="text-2xl font-bold text-blue-600">{animatedImpactReadiness}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-1000"
+                      style={{ width: `${animatedImpactReadiness}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">WILL</span>
+                    <span className="text-2xl font-bold text-green-600">{animatedWill}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-1000"
+                      style={{ width: `${animatedWill}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">SKILL</span>
+                    <span className="text-2xl font-bold text-orange-600">{animatedSkill}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-1000"
+                      style={{ width: `${animatedSkill}%` }}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-1000"
-                  style={{ width: `${animatedSkill}%` }}
-                />
-              </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
 
           {/* Quadrant Badge */}
           <div className="flex justify-center gap-3 items-center">
