@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.compare-candidates]
 verify_jwt = false
+
+[functions.generate-adaptive-question]
+verify_jwt = false
