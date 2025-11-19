@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, Loader2, Info, List, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, Info, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Vertical = {
@@ -46,47 +46,46 @@ type QuestionResponse = {
 const questionDefinitions = [
   {
     number: 1,
-    title: "Which verticals interest you most?",
-    type: "vertical-select",
-    instructions: "Choose your top 3 preferences in priority order",
+    title: "Personal Irritation → Vertical Selection",
+    type: "irritation-vertical",
+    partAInstructions: "Describe a problem in Erode/your community that IRRITATES you so much you can't ignore it. What specific moment made you feel 'I have to do something about this'?",
+    partAPlaceholder: "Share the problem that drives you...",
+    partAMinChars: 200,
+    partAMaxChars: 800,
+    partBInstructions: "Based on what you described, these Yi Erode verticals might align with your concern. Select your top 3 priorities (rank them):",
   },
   {
     number: 2,
+    title: "Initiative Design",
+    type: "long-text",
+    scenario: "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described in Q1. Design your initiative - what would you do, who would you work with, how would you reach 10,000+ people, and what specific change would you create?",
+    placeholder: "Describe your initiative design...",
+    minChars: 300,
+    maxChars: 1000,
+  },
+  {
+    number: 3,
     title: "Saturday Emergency Response",
     type: "long-text",
-    scenario:
-      "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event. Can you come to the office now for 3-4 hours?' What's your honest response?",
+    scenario: "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event. Can you come to the office now for 3-4 hours?' What's your honest response?",
     placeholder: "Describe exactly what you'd say and do...",
     minChars: 50,
     maxChars: 500,
   },
   {
-    number: 3,
-    title: "Your 2026 Commitment",
-    type: "short-text",
-    instruction: "Complete this sentence:",
-    prompt: "By December 2026 I will have...",
-    placeholder: "Be specific with numbers and action verbs...",
-    minChars: 30,
-    maxChars: 300,
-  },
-  {
     number: 4,
-    title: "What might hold you back?",
-    type: "radio-with-text",
-    options: [
-      { value: "none", label: "None - I'm fully available and committed" },
-      { value: "time", label: "Time constraints (work/studies)" },
-      { value: "expectations", label: "Family/personal expectations" },
-      { value: "skills", label: "Lack of specific skills" },
-    ],
+    title: "Your Most Significant Achievement",
+    type: "long-text",
+    scenario: "Describe your most significant achievement in the last 2 years - something you're genuinely proud of (can be academic, personal, volunteer, or professional). What did you do, what obstacles did you face, and what was the outcome?",
+    placeholder: "Share your achievement story...",
+    minChars: 100,
+    maxChars: 400,
   },
   {
     number: 5,
     title: "Team Deadline Scenario",
     type: "radio",
-    scenario:
-      "Your team misses a critical deadline. What's your first instinct?",
+    scenario: "Your team misses a critical deadline. What's your first instinct?",
     options: [
       {
         value: "leader",
@@ -119,7 +118,6 @@ const Assessment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verticals, setVerticals] = useState<Vertical[]>([]);
   const [validationError, setValidationError] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState<{
     priority1: boolean;
     priority2: boolean;
