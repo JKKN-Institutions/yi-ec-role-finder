@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,14 +26,27 @@ interface Candidate {
 
 const AdminCandidates = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
+  const [quadrantFilter, setQuadrantFilter] = useState<string>("all");
   const [reanalyzing, setReanalyzing] = useState<string | null>(null);
 
   useEffect(() => {
+    // Apply URL params on mount
+    const status = searchParams.get("status");
+    const review = searchParams.get("review");
+    const quadrant = searchParams.get("quadrant");
+    const shortlisted = searchParams.get("shortlisted");
+    
+    if (status) setStatusFilter(status);
+    if (review) setReviewFilter(review);
+    if (quadrant) setQuadrantFilter(quadrant);
+    if (shortlisted === "true") setReviewFilter("shortlisted");
+    
     loadCandidates();
   }, []);
 
@@ -123,9 +136,19 @@ const AdminCandidates = () => {
     const matchesSearch =
       candidate.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       candidate.user_email.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = statusFilter === "all" || candidate.status === statusFilter;
-    const matchesReview = reviewFilter === "all" || candidate.review_status === reviewFilter;
-    return matchesSearch && matchesStatus && matchesReview;
+
+    const matchesReview = 
+      reviewFilter === "all" 
+        ? true 
+        : reviewFilter === "shortlisted"
+        ? candidate.is_shortlisted
+        : candidate.review_status === reviewFilter;
+
+    const matchesQuadrant = quadrantFilter === "all" || candidate.quadrant === quadrantFilter;
+
+    return matchesSearch && matchesStatus && matchesReview && matchesQuadrant;
   });
 
   if (loading) {
@@ -162,7 +185,7 @@ const AdminCandidates = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -188,9 +211,22 @@ const AdminCandidates = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Reviews</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="new">New</SelectItem>
                 <SelectItem value="reviewed">Reviewed</SelectItem>
-                <SelectItem value="flagged">Flagged</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="shortlisted">Shortlisted</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={quadrantFilter} onValueChange={setQuadrantFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by quadrant" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Quadrants</SelectItem>
+                <SelectItem value="leader">Leader</SelectItem>
+                <SelectItem value="enthusiast">Enthusiast</SelectItem>
+                <SelectItem value="specialist">Specialist</SelectItem>
+                <SelectItem value="developing">Developing</SelectItem>
               </SelectContent>
             </Select>
           </div>

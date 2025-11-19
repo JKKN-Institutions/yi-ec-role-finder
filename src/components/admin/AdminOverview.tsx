@@ -5,6 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search } from "lucide-react";
 import {
   TrendingUp,
   Users,
@@ -69,6 +72,9 @@ export function AdminOverview() {
   const [statusData, setStatusData] = useState<StatusData[]>([]);
   const [recentSubmissions, setRecentSubmissions] = useState<RecentSubmission[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [quadrantFilter, setQuadrantFilter] = useState<string>("all");
 
   const loadData = async () => {
     // Fetch all assessments
@@ -143,8 +149,8 @@ export function AdminOverview() {
         { status: "Rejected", count: statusCount.rejected },
       ]);
 
-      // Get recent submissions
-      const recent = assessments.slice(0, 10).map((a) => ({
+      // Get all submissions (not limited to 10)
+      const recent = assessments.map((a) => ({
         id: a.id,
         user_name: a.user_name,
         user_email: a.user_email,
@@ -210,6 +216,19 @@ export function AdminOverview() {
     return colors[quadrant] || "bg-gray-500";
   };
 
+  // Filter recent submissions
+  const filteredSubmissions = recentSubmissions.filter((submission) => {
+    const matchesSearch =
+      submission.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      submission.user_email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || submission.status === statusFilter;
+    
+    const matchesQuadrant = quadrantFilter === "all" || submission.results?.quadrant === quadrantFilter;
+
+    return matchesSearch && matchesStatus && matchesQuadrant;
+  });
+
   return (
     <div className="space-y-8 p-8">
       {/* Recent Submissions - High Priority Section */}
@@ -218,12 +237,48 @@ export function AdminOverview() {
           <div>
             <h2 className="text-2xl font-bold mb-1">Recent Submissions</h2>
             <p className="text-sm text-muted-foreground">
-              Latest assessment submissions • Updated {formatDistanceToNow(lastUpdate, { addSuffix: true })}
+              All assessment submissions • Updated {formatDistanceToNow(lastUpdate, { addSuffix: true })}
             </p>
           </div>
           <Button onClick={() => navigate("/admin/candidates")} size="lg">
             View All Candidates
           </Button>
+        </div>
+        
+        {/* Search and Filters */}
+        <div className="flex gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="reviewed">Reviewed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={quadrantFilter} onValueChange={setQuadrantFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Quadrant" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Quadrants</SelectItem>
+              <SelectItem value="leader">Leader</SelectItem>
+              <SelectItem value="enthusiast">Enthusiast</SelectItem>
+              <SelectItem value="specialist">Specialist</SelectItem>
+              <SelectItem value="developing">Developing</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         <div className="overflow-x-auto">
@@ -240,7 +295,14 @@ export function AdminOverview() {
               </tr>
             </thead>
             <tbody>
-              {recentSubmissions.map((submission) => (
+              {filteredSubmissions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                    No submissions found matching your filters
+                  </td>
+                </tr>
+              ) : (
+                filteredSubmissions.map((submission) => (
                 <tr key={submission.id} className="border-b hover:bg-muted/50">
                   <td className="p-3 text-sm font-medium">{submission.user_name}</td>
                   <td className="p-3 text-sm text-muted-foreground">
@@ -297,7 +359,7 @@ export function AdminOverview() {
                     </Button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
@@ -317,6 +379,14 @@ export function AdminOverview() {
               <TrendingUp className="h-3 w-3" />
               +{stats.weeklyTrend} this week
             </div>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-xs mt-2"
+              onClick={() => navigate("/admin/candidates?status=completed")}
+            >
+              View All <ArrowRight className="ml-1 h-3 w-3" />
+            </Button>
           </div>
         </Card>
 
@@ -332,7 +402,7 @@ export function AdminOverview() {
               variant="link"
               size="sm"
               className="h-auto p-0 text-xs"
-              onClick={() => navigate("/admin/candidates")}
+              onClick={() => navigate("/admin/candidates?review=new")}
             >
               Review Now <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
@@ -347,12 +417,20 @@ export function AdminOverview() {
             <p className="text-sm text-muted-foreground">Shortlisted</p>
             <h3 className="text-3xl font-bold">{stats.shortlisted}</h3>
             <p className="text-xs text-muted-foreground">Ready for interview</p>
-            <p className="text-xs text-green-600">
+            <p className="text-xs text-green-600 mb-2">
               {stats.totalAssessments > 0
                 ? Math.round((stats.shortlisted / stats.totalAssessments) * 100)
                 : 0}
               % of total
             </p>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-xs"
+              onClick={() => navigate("/admin/candidates?shortlisted=true")}
+            >
+              View All <ArrowRight className="ml-1 h-3 w-3" />
+            </Button>
           </div>
         </Card>
 
