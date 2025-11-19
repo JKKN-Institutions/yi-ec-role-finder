@@ -16,6 +16,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Ba
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { ActiveAdminsWidget } from "./ActiveAdminsWidget";
+import { TestAssessmentSeeder } from "./TestAssessmentSeeder";
 
 interface Stats {
   totalAssessments: number;
@@ -433,6 +434,9 @@ export function AdminOverview() {
           </Button>
         </div>
       </Card>
+
+      {/* Test Assessment Generator */}
+      <TestAssessmentSeeder />
     </div>
   );
 }
