@@ -115,10 +115,16 @@ export type Database = {
       assessment_results: {
         Row: {
           assessment_id: string
+          confidence_level: string | null
           created_at: string
+          development_areas: Json | null
+          execution_capability_score: number | null
           id: string
+          impact_readiness_score: number | null
           key_insights: Json | null
+          key_strengths: Json | null
           leadership_style: string | null
+          personal_ownership_score: number | null
           quadrant: string
           reasoning: string | null
           recommendations: Json
@@ -131,10 +137,16 @@ export type Database = {
         }
         Insert: {
           assessment_id: string
+          confidence_level?: string | null
           created_at?: string
+          development_areas?: Json | null
+          execution_capability_score?: number | null
           id?: string
+          impact_readiness_score?: number | null
           key_insights?: Json | null
+          key_strengths?: Json | null
           leadership_style?: string | null
+          personal_ownership_score?: number | null
           quadrant: string
           reasoning?: string | null
           recommendations?: Json
@@ -147,10 +159,16 @@ export type Database = {
         }
         Update: {
           assessment_id?: string
+          confidence_level?: string | null
           created_at?: string
+          development_areas?: Json | null
+          execution_capability_score?: number | null
           id?: string
+          impact_readiness_score?: number | null
           key_insights?: Json | null
+          key_strengths?: Json | null
           leadership_style?: string | null
+          personal_ownership_score?: number | null
           quadrant?: string
           reasoning?: string | null
           recommendations?: Json
