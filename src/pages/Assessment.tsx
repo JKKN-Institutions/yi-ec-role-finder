@@ -280,54 +280,97 @@ const Assessment = () => {
   };
 
   const adaptQuestion = async (questionNumber: number) => {
-    // Only adapt Q2 for now (Step 1 implementation)
-    if (questionNumber !== 2 || adaptedQuestions[questionNumber]) {
-      return; // Skip if not Q2 or already adapted
+    // Only adapt Q2 and Q3 for now
+    if ((questionNumber !== 2 && questionNumber !== 3) || adaptedQuestions[questionNumber]) {
+      return; // Skip if not Q2/Q3 or already adapted
     }
 
     setIsAdaptingQuestion(true);
     try {
-      // Gather Q1 responses
       const q1Response = responses[1];
-      if (!q1Response || !q1Response.partA) {
-        console.log('Q1 responses not available, using default Q2');
-        return;
-      }
-
-      // Get selected vertical names
-      const selectedVerticalIds = [
-        q1Response.priority1,
-        q1Response.priority2,
-        q1Response.priority3,
-      ].filter(Boolean);
+      const q2Response = responses[2];
       
-      const selectedVerticalNames = verticals
-        .filter(v => selectedVerticalIds.includes(v.id))
-        .map(v => v.name);
-
-      const { data, error } = await supabase.functions.invoke('generate-adaptive-question', {
-        body: {
-          questionNumber: 2,
-          previousResponses: {
-            q1_part_a: q1Response.partA,
-            q1_verticals: selectedVerticalNames,
-          }
+      // Q2 adaptation
+      if (questionNumber === 2) {
+        if (!q1Response || !q1Response.partA) {
+          console.log('Q1 responses not available, using default Q2');
+          return;
         }
-      });
 
-      if (error) throw error;
+        const selectedVerticalIds = [
+          q1Response.priority1,
+          q1Response.priority2,
+          q1Response.priority3,
+        ].filter(Boolean);
+        
+        const selectedVerticalNames = verticals
+          .filter(v => selectedVerticalIds.includes(v.id))
+          .map(v => v.name);
 
-      if (data && data.success) {
-        setAdaptedQuestions(prev => ({
-          ...prev,
-          [questionNumber]: {
-            scenario: data.adaptedScenario,
-            contextSummary: data.contextSummary,
+        const { data, error } = await supabase.functions.invoke('generate-adaptive-question', {
+          body: {
+            questionNumber: 2,
+            previousResponses: {
+              q1_part_a: q1Response.partA,
+              q1_verticals: selectedVerticalNames,
+            }
           }
-        }));
-        toast.success('Question personalized based on your Q1 response');
-      } else {
-        console.log('Adaptation failed, using default Q2');
+        });
+
+        if (error) throw error;
+
+        if (data && data.success) {
+          setAdaptedQuestions(prev => ({
+            ...prev,
+            [questionNumber]: {
+              scenario: data.adaptedScenario,
+              contextSummary: data.contextSummary,
+            }
+          }));
+          toast.success('Question personalized based on your Q1 response');
+        }
+      }
+      
+      // Q3 adaptation
+      if (questionNumber === 3) {
+        if (!q1Response || !q1Response.partA || !q2Response || !q2Response.response) {
+          console.log('Q1/Q2 responses not available, using default Q3');
+          return;
+        }
+
+        const selectedVerticalIds = [
+          q1Response.priority1,
+          q1Response.priority2,
+          q1Response.priority3,
+        ].filter(Boolean);
+        
+        const selectedVerticalNames = verticals
+          .filter(v => selectedVerticalIds.includes(v.id))
+          .map(v => v.name);
+
+        const { data, error } = await supabase.functions.invoke('generate-adaptive-question', {
+          body: {
+            questionNumber: 3,
+            previousResponses: {
+              q1_part_a: q1Response.partA,
+              q1_verticals: selectedVerticalNames,
+              q2_initiative: q2Response.response,
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        if (data && data.success) {
+          setAdaptedQuestions(prev => ({
+            ...prev,
+            [questionNumber]: {
+              scenario: data.adaptedScenario,
+              contextSummary: data.contextSummary,
+            }
+          }));
+          toast.success('Question personalized based on your initiative design');
+        }
       }
     } catch (error) {
       console.error('Failed to adapt question:', error);
@@ -345,8 +388,8 @@ const Assessment = () => {
     if (currentQuestion < 5) {
       const nextQuestion = currentQuestion + 1;
       
-      // Adapt the next question before showing it (only Q2 for now)
-      if (nextQuestion === 2) {
+      // Adapt the next question before showing it (Q2 and Q3)
+      if (nextQuestion === 2 || nextQuestion === 3) {
         await adaptQuestion(nextQuestion);
       }
       

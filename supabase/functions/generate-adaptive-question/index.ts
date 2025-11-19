@@ -16,30 +16,44 @@ serve(async (req) => {
 
     console.log('Adapting question:', { questionNumber, previousResponses });
 
-    // Currently only supporting Q2 adaptation
-    if (questionNumber !== 2) {
+    // Support Q2 and Q3 adaptation
+    if (questionNumber !== 2 && questionNumber !== 3) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Only Q2 adaptation is supported in this version' 
+          error: 'Only Q2 and Q3 adaptation is supported in this version' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate required data for Q2
-    const { q1_part_a, q1_verticals } = previousResponses || {};
+    // Validate required data based on question number
+    const { q1_part_a, q1_verticals, q2_initiative } = previousResponses || {};
     
-    if (!q1_part_a || !q1_verticals || q1_verticals.length === 0) {
-      console.log('Missing Q1 data, returning default');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Missing Q1 responses for adaptation',
-          useDefault: true 
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (questionNumber === 2) {
+      if (!q1_part_a || !q1_verticals || q1_verticals.length === 0) {
+        console.log('Missing Q1 data for Q2, returning default');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing Q1 responses for Q2 adaptation',
+            useDefault: true 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else if (questionNumber === 3) {
+      if (!q1_part_a || !q2_initiative) {
+        console.log('Missing Q1/Q2 data for Q3, returning default');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing Q1/Q2 responses for Q3 adaptation',
+            useDefault: true 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -47,101 +61,24 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Step 1: Extract concise problem summary (2-5 words)
-    console.log('Extracting problem summary...');
-    const summaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert at extracting concise summaries. Extract a 2-5 word summary of the main problem described in the text. Be specific and use the exact terminology from the text.'
-          },
-          {
-            role: 'user',
-            content: `Extract a 2-5 word problem summary from this text:\n\n"${q1_part_a}"\n\nRespond with ONLY the 2-5 word summary, nothing else. Examples: "waste management issues", "lack of youth programs", "poor road conditions", "education quality gaps".`
-          }
-        ],
-        temperature: 0.3,
-      }),
-    });
-
-    if (!summaryResponse.ok) {
-      const errorText = await summaryResponse.text();
-      console.error('Failed to extract problem summary:', summaryResponse.status, errorText);
-      throw new Error('Failed to extract problem summary');
+    // Handle Q2 adaptation
+    if (questionNumber === 2) {
+      return await adaptQ2(q1_part_a!, q1_verticals!, LOVABLE_API_KEY, corsHeaders);
     }
-
-    const summaryData = await summaryResponse.json();
-    const problemSummary = summaryData.choices[0].message.content.trim();
-    console.log('Extracted problem summary:', problemSummary);
-
-    // Step 2: Generate adapted Q2 scenario
-    console.log('Generating adapted Q2 scenario...');
     
-    const verticalsText = q1_verticals.join(', ');
-    const defaultQ2 = "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described in Q1. Design your initiative: What specific actions would you take? How would you reach 10,000+ people? What lasting change would you create?";
-
-    const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized questions that reference their responses while maintaining assessment integrity and constraints.'
-          },
-          {
-            role: 'user',
-            content: `Original Q2: "${defaultQ2}"
-
-Candidate's problem (from Q1): "${q1_part_a.substring(0, 500)}"
-Problem summary (2-5 words): "${problemSummary}"
-Selected verticals: ${verticalsText}
-
-Generate an adapted Q2 that:
-1. Opens by acknowledging their specific problem using the summary (e.g., "You described being irritated by ${problemSummary}...")
-2. Mentions they selected these verticals: ${verticalsText}
-3. Maintains the exact constraints: 6 months and ₹50,000
-4. Asks how they would reach 10,000+ people
-5. Ends with asking about lasting change
-6. Keep it conversational and encouraging
-7. Total length should be 150-200 words
-
-Respond with ONLY the adapted question text, nothing else.`
-          }
-        ],
-        temperature: 0.5,
-      }),
-    });
-
-    if (!adaptationResponse.ok) {
-      const errorText = await adaptationResponse.text();
-      console.error('Failed to generate adapted scenario:', adaptationResponse.status, errorText);
-      throw new Error('Failed to generate adapted scenario');
+    // Handle Q3 adaptation
+    if (questionNumber === 3) {
+      return await adaptQ3(q1_part_a!, q1_verticals || [], q2_initiative!, LOVABLE_API_KEY, corsHeaders);
     }
 
-    const adaptationData = await adaptationResponse.json();
-    const adaptedScenario = adaptationData.choices[0].message.content.trim();
-    console.log('Generated adapted scenario:', adaptedScenario.substring(0, 100) + '...');
-
+    // Fallback if neither Q2 nor Q3
     return new Response(
-      JSON.stringify({
-        success: true,
-        adaptedScenario,
-        contextSummary: problemSummary,
-        verticals: q1_verticals
+      JSON.stringify({ 
+        success: false, 
+        error: 'Unsupported question number',
+        useDefault: true 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -159,3 +96,246 @@ Respond with ONLY the adapted question text, nothing else.`
     );
   }
 });
+
+// Q2 Adaptation: Reference problem and verticals
+async function adaptQ2(
+  problemText: string, 
+  verticals: string[], 
+  apiKey: string,
+  corsHeaders: Record<string, string>
+) {
+  // Step 1: Extract concise problem summary (2-5 words)
+  console.log('Extracting problem summary for Q2...');
+  const summaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at extracting concise summaries. Extract a 2-5 word summary of the main problem described in the text. Be specific and use the exact terminology from the text.'
+        },
+        {
+          role: 'user',
+          content: `Extract a 2-5 word problem summary from this text:\n\n"${problemText}"\n\nRespond with ONLY the 2-5 word summary, nothing else. Examples: "waste management issues", "lack of youth programs", "poor road conditions", "education quality gaps".`
+        }
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!summaryResponse.ok) {
+    const errorText = await summaryResponse.text();
+    console.error('Failed to extract problem summary:', summaryResponse.status, errorText);
+    throw new Error('Failed to extract problem summary');
+  }
+
+  const summaryData = await summaryResponse.json();
+  const problemSummary = summaryData.choices[0].message.content.trim();
+  console.log('Extracted problem summary:', problemSummary);
+
+  // Step 2: Generate adapted Q2 scenario
+  console.log('Generating adapted Q2 scenario...');
+  
+  const verticalsText = verticals.join(', ');
+  const defaultQ2 = "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described in Q1. Design your initiative: What specific actions would you take? How would you reach 10,000+ people? What lasting change would you create?";
+
+  const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized questions that reference their responses while maintaining assessment integrity and constraints.'
+        },
+        {
+          role: 'user',
+          content: `Original Q2: "${defaultQ2}"
+
+Candidate's problem (from Q1): "${problemText.substring(0, 500)}"
+Problem summary (2-5 words): "${problemSummary}"
+Selected verticals: ${verticalsText}
+
+Generate an adapted Q2 that:
+1. Opens by acknowledging their specific problem using the summary (e.g., "You described being irritated by ${problemSummary}...")
+2. Mentions they selected these verticals: ${verticalsText}
+3. Maintains the exact constraints: 6 months and ₹50,000
+4. Asks how they would reach 10,000+ people
+5. Ends with asking about lasting change
+6. Keep it conversational and encouraging
+7. Total length should be 150-200 words
+
+Respond with ONLY the adapted question text, nothing else.`
+        }
+      ],
+      temperature: 0.5,
+    }),
+  });
+
+  if (!adaptationResponse.ok) {
+    const errorText = await adaptationResponse.text();
+    console.error('Failed to generate Q2 adapted scenario:', adaptationResponse.status, errorText);
+    throw new Error('Failed to generate adapted scenario');
+  }
+
+  const adaptationData = await adaptationResponse.json();
+  const adaptedScenario = adaptationData.choices[0].message.content.trim();
+  console.log('Generated Q2 adapted scenario:', adaptedScenario.substring(0, 100) + '...');
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      adaptedScenario,
+      contextSummary: problemSummary,
+      verticals
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Q3 Adaptation: Reference problem, verticals, and initiative from Q2
+async function adaptQ3(
+  problemText: string,
+  verticals: string[],
+  initiativeText: string,
+  apiKey: string,
+  corsHeaders: Record<string, string>
+) {
+  console.log('Adapting Q3 based on Q1 and Q2...');
+
+  // Step 1: Extract initiative summary (3-7 words)
+  const initiativeSummaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at extracting concise initiative summaries. Extract a 3-7 word summary that captures the core activity or campaign name.'
+        },
+        {
+          role: 'user',
+          content: `Extract a 3-7 word initiative summary from this text:\n\n"${initiativeText.substring(0, 600)}"\n\nRespond with ONLY the 3-7 word summary, nothing else. Examples: "community waste segregation campaign", "youth skills training program", "neighborhood cleanliness drive", "digital literacy workshops for students".`
+        }
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!initiativeSummaryResponse.ok) {
+    const errorText = await initiativeSummaryResponse.text();
+    console.error('Failed to extract initiative summary:', initiativeSummaryResponse.status, errorText);
+    throw new Error('Failed to extract initiative summary');
+  }
+
+  const initiativeSummaryData = await initiativeSummaryResponse.json();
+  const initiativeSummary = initiativeSummaryData.choices[0].message.content.trim();
+  console.log('Extracted initiative summary:', initiativeSummary);
+
+  // Step 2: Extract problem summary for context
+  const problemSummaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'Extract a 2-5 word problem summary.'
+        },
+        {
+          role: 'user',
+          content: `Extract a 2-5 word problem summary: "${problemText.substring(0, 300)}"`
+        }
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  const problemSummaryData = await problemSummaryResponse.json();
+  const problemSummary = problemSummaryData.choices[0].message.content.trim();
+
+  // Step 3: Get primary vertical (first one if available)
+  const primaryVertical = verticals.length > 0 ? verticals[0] : 'your vertical';
+
+  // Step 4: Generate adapted Q3 scenario
+  const defaultQ3 = "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event. Can you come to the office now for 3-4 hours?' What's your honest response?";
+
+  const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized scenarios that reference their previous responses while maintaining the Saturday crisis test of commitment.'
+        },
+        {
+          role: 'user',
+          content: `Original Q3: "${defaultQ3}"
+
+Context from previous questions:
+- Problem they care about: ${problemSummary}
+- Initiative they designed: ${initiativeSummary}
+- Primary vertical: ${primaryVertical}
+
+Generate an adapted Q3 that:
+1. Sets the same scene: Saturday 6 PM, relaxing with family
+2. References their PRIMARY VERTICAL (${primaryVertical}) as the caller
+3. References their INITIATIVE (${initiativeSummary}) as what needs preparation for tomorrow's launch/event
+4. Maintains the time pressure: come now for 3-4 hours
+5. Ends with the same question: "What's your honest response?"
+6. Keep it conversational and realistic
+7. Total length should be 100-150 words
+
+Example structure:
+"It's Saturday, 6 PM. You're with family when your ${primaryVertical} vertical head calls: 'We need urgent help preparing for tomorrow's launch of your ${initiativeSummary}. Can you come to the office now for 3-4 hours to finalize materials?' What's your honest response?"
+
+Respond with ONLY the adapted question text, nothing else.`
+        }
+      ],
+      temperature: 0.5,
+    }),
+  });
+
+  if (!adaptationResponse.ok) {
+    const errorText = await adaptationResponse.text();
+    console.error('Failed to generate Q3 adapted scenario:', adaptationResponse.status, errorText);
+    throw new Error('Failed to generate Q3 adapted scenario');
+  }
+
+  const adaptationData = await adaptationResponse.json();
+  const adaptedScenario = adaptationData.choices[0].message.content.trim();
+  console.log('Generated Q3 adapted scenario:', adaptedScenario.substring(0, 100) + '...');
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      adaptedScenario,
+      contextSummary: initiativeSummary,
+      problemSummary,
+      primaryVertical
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
