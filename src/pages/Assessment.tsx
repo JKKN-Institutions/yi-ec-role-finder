@@ -746,7 +746,7 @@ const Assessment = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto px-4 pb-8 pt-2 max-w-3xl">
+      <div className="container mx-auto px-4 pt-2 max-w-3xl pb-0">
         {/* Progress Section */}
         <div className="mb-2">
           <div className="flex justify-between items-center mb-0.5">
@@ -809,7 +809,7 @@ const Assessment = () => {
             </div>
           )}
 
-          <div className="mobile-footer mt-4 md:mt-6 flex flex-row justify-between gap-2">
+          <div className="mobile-footer mt-2 flex flex-row justify-between gap-2">
             <Button
               variant="outline"
               onClick={handlePrevious}
