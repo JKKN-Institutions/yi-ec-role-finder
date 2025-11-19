@@ -212,6 +212,97 @@ export function AdminOverview() {
 
   return (
     <div className="space-y-8 p-8">
+      {/* Recent Submissions - High Priority Section */}
+      <Card className="p-8 border-2">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-1">Recent Submissions</h2>
+            <p className="text-sm text-muted-foreground">
+              Latest assessment submissions • Updated {formatDistanceToNow(lastUpdate, { addSuffix: true })}
+            </p>
+          </div>
+          <Button onClick={() => navigate("/admin/candidates")} size="lg">
+            View All Candidates
+          </Button>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left p-3 text-sm font-medium">Name</th>
+                <th className="text-left p-3 text-sm font-medium">Email</th>
+                <th className="text-left p-3 text-sm font-medium">Submitted</th>
+                <th className="text-left p-3 text-sm font-medium">Quadrant</th>
+                <th className="text-left p-3 text-sm font-medium">Scores</th>
+                <th className="text-left p-3 text-sm font-medium">Status</th>
+                <th className="text-left p-3 text-sm font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentSubmissions.map((submission) => (
+                <tr key={submission.id} className="border-b hover:bg-muted/50">
+                  <td className="p-3 text-sm font-medium">{submission.user_name}</td>
+                  <td className="p-3 text-sm text-muted-foreground">
+                    {submission.user_email}
+                  </td>
+                  <td className="p-3 text-sm">
+                    {formatDistanceToNow(new Date(submission.created_at), {
+                      addSuffix: true,
+                    })}
+                  </td>
+                  <td className="p-3">
+                    {submission.results && (
+                      <Badge className={getQuadrantColor(submission.results.quadrant)}>
+                        {submission.results.quadrant}
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {submission.results && (
+                      <div className="space-y-1 w-32">
+                        <div>
+                          <div className="text-xs mb-1">
+                            WILL: {submission.results.will_score}
+                          </div>
+                          <Progress
+                            value={submission.results.will_score}
+                            className="h-1"
+                          />
+                        </div>
+                        <div>
+                          <div className="text-xs mb-1">
+                            SKILL: {submission.results.skill_score}
+                          </div>
+                          <Progress
+                            value={submission.results.skill_score}
+                            className="h-1"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <Badge variant={getStatusBadgeVariant(submission.status)}>
+                      {submission.status}
+                    </Badge>
+                  </td>
+                  <td className="p-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/admin/candidate/${submission.id}`)}
+                    >
+                      View
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       {/* Top Stats Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-6">
@@ -339,91 +430,6 @@ export function AdminOverview() {
         </Card>
       </div>
 
-      {/* Recent Submissions */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Recent Submissions</h3>
-          <p className="text-xs text-muted-foreground">
-            Updated {formatDistanceToNow(lastUpdate, { addSuffix: true })}
-          </p>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-3 text-sm font-medium">Name</th>
-                <th className="text-left p-3 text-sm font-medium">Email</th>
-                <th className="text-left p-3 text-sm font-medium">Submitted</th>
-                <th className="text-left p-3 text-sm font-medium">Quadrant</th>
-                <th className="text-left p-3 text-sm font-medium">Scores</th>
-                <th className="text-left p-3 text-sm font-medium">Status</th>
-                <th className="text-left p-3 text-sm font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentSubmissions.map((submission) => (
-                <tr key={submission.id} className="border-b hover:bg-muted/50">
-                  <td className="p-3 text-sm font-medium">{submission.user_name}</td>
-                  <td className="p-3 text-sm text-muted-foreground">
-                    {submission.user_email}
-                  </td>
-                  <td className="p-3 text-sm">
-                    {formatDistanceToNow(new Date(submission.created_at), {
-                      addSuffix: true,
-                    })}
-                  </td>
-                  <td className="p-3">
-                    {submission.results && (
-                      <Badge className={getQuadrantColor(submission.results.quadrant)}>
-                        {submission.results.quadrant}
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {submission.results && (
-                      <div className="space-y-1 w-32">
-                        <div>
-                          <div className="text-xs mb-1">
-                            WILL: {submission.results.will_score}
-                          </div>
-                          <Progress
-                            value={submission.results.will_score}
-                            className="h-1"
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs mb-1">
-                            SKILL: {submission.results.skill_score}
-                          </div>
-                          <Progress
-                            value={submission.results.skill_score}
-                            className="h-1"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <Badge variant={getStatusBadgeVariant(submission.status)}>
-                      {submission.status}
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate(`/admin/candidate/${submission.id}`)}
-                    >
-                      View
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
 
       {/* Quick Actions */}
       <Card className="p-6">
