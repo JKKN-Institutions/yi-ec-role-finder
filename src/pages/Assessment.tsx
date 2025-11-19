@@ -748,27 +748,27 @@ const Assessment = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         {/* Progress Section */}
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-muted-foreground">
+        <div className="mb-2">
+          <div className="flex justify-between items-center mb-0.5">
+            <span className="text-xs text-muted-foreground">
               Question {currentQuestion} of 5
             </span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {Math.round(progress)}%
             </span>
           </div>
-          <Progress value={progress} className="h-2 mb-2" />
+          <Progress value={progress} className="h-1 mb-1" />
           
           {/* Progress Dots */}
-          <div className="flex justify-center gap-2">
+          <div className="flex justify-center gap-1">
             {[1, 2, 3, 4, 5].map((num) => (
               <div
                 key={num}
-                className={`w-3 h-3 rounded-full transition-colors ${
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
                   num < currentQuestion
                     ? "bg-primary"
                     : num === currentQuestion
-                    ? "bg-primary ring-4 ring-primary/20"
+                    ? "bg-primary ring-2 ring-primary/20"
                     : "bg-muted"
                 }`}
               />
@@ -778,7 +778,7 @@ const Assessment = () => {
 
         <Card className="p-4 md:p-8 shadow-lg">
           <div className="flex items-start justify-between mb-4 md:mb-6">
-            <h2 className="text-xl md:text-2xl font-semibold" role="heading" aria-level={2}>
+            <h2 className="text-base md:text-lg font-semibold" role="heading" aria-level={2}>
               {currentQ?.title}
             </h2>
             <Button
