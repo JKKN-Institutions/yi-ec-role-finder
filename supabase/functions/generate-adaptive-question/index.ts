@@ -16,12 +16,12 @@ serve(async (req) => {
 
     console.log('Adapting question:', { questionNumber, previousResponses });
 
-    // Support Q2, Q3, and Q4 adaptation
-    if (questionNumber !== 2 && questionNumber !== 3 && questionNumber !== 4) {
+    // Support Q2, Q3, Q4, and Q5 adaptation
+    if (questionNumber !== 2 && questionNumber !== 3 && questionNumber !== 4 && questionNumber !== 5) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Only Q2, Q3, and Q4 adaptation is supported in this version' 
+          error: 'Only Q2, Q3, Q4, and Q5 adaptation is supported in this version' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -66,6 +66,18 @@ serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+    } else if (questionNumber === 5) {
+      if (!q2_initiative) {
+        console.log('Missing Q2 data for Q5, returning default');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing Q2 responses for Q5 adaptation',
+            useDefault: true 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -87,8 +99,13 @@ serve(async (req) => {
     if (questionNumber === 4) {
       return await adaptQ4(q1_part_a!, q1_verticals || [], q2_initiative!, LOVABLE_API_KEY, corsHeaders);
     }
+    
+    // Handle Q5 adaptation
+    if (questionNumber === 5) {
+      return await adaptQ5(q2_initiative!, LOVABLE_API_KEY, corsHeaders);
+    }
 
-    // Fallback if not Q2, Q3, or Q4
+    // Fallback if not Q2, Q3, Q4, or Q5
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -494,6 +511,148 @@ Respond with ONLY the adapted question text, nothing else.`
       contextSummary: relevantDomains,
       problemSummary,
       verticals
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Q5 Adaptation: Frame the team deadline scenario around their initiative
+async function adaptQ5(
+  initiativeText: string,
+  apiKey: string,
+  corsHeaders: Record<string, string>
+) {
+  console.log('Adapting Q5 based on Q2...');
+
+  // Step 1: Extract initiative summary (3-7 words)
+  const initiativeSummaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at extracting concise initiative summaries.'
+        },
+        {
+          role: 'user',
+          content: `Extract a 3-7 word initiative summary from this text:\n\n"${initiativeText.substring(0, 600)}"\n\nRespond with ONLY the 3-7 word summary, nothing else. Examples: "community waste segregation campaign", "youth skills training program", "digital literacy workshops".`
+        }
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!initiativeSummaryResponse.ok) {
+    const errorText = await initiativeSummaryResponse.text();
+    console.error('Failed to extract initiative summary for Q5:', initiativeSummaryResponse.status, errorText);
+    throw new Error('Failed to extract initiative summary');
+  }
+
+  const initiativeSummaryData = await initiativeSummaryResponse.json();
+  const initiativeSummary = initiativeSummaryData.choices[0].message.content.trim();
+  console.log('Extracted initiative summary for Q5:', initiativeSummary);
+
+  // Step 2: Generate a specific deliverable/deadline for the scenario
+  const deliverableResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'Generate a realistic specific deliverable or milestone that would be critical for this initiative.'
+        },
+        {
+          role: 'user',
+          content: `For this initiative: "${initiativeSummary}"
+
+Generate ONE specific, realistic deliverable or milestone that a team might miss a deadline for.
+
+Examples:
+- "recruiting 100 volunteers"
+- "printing 500 campaign posters"
+- "booking the community hall"
+- "collecting survey responses from 200 students"
+- "finalizing the training curriculum"
+
+Respond with ONLY the deliverable phrase (3-8 words), nothing else.`
+        }
+      ],
+      temperature: 0.5,
+    }),
+  });
+
+  const deliverableData = await deliverableResponse.json();
+  const specificDeliverable = deliverableData.choices[0].message.content.trim();
+  console.log('Generated specific deliverable:', specificDeliverable);
+
+  // Step 3: Generate adapted Q5 scenario (keeping it focused on the scenario text)
+  const defaultQ5 = "Your team misses a critical deadline. What's your first instinct?";
+
+  const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized scenarios that test their leadership instincts in a realistic context.'
+        },
+        {
+          role: 'user',
+          content: `Original Q5: "${defaultQ5}"
+
+Context:
+- Their initiative: ${initiativeSummary}
+- Specific missed deliverable: ${specificDeliverable}
+
+Generate an adapted Q5 scenario that:
+1. States that their team working on the "${initiativeSummary}" missed a deadline
+2. Specifies what was missed: "${specificDeliverable}"
+3. Adds realistic urgency (e.g., "The public launch is in 3 days" or similar deadline pressure)
+4. Ends with "What's your first instinct?"
+5. Keep it concise: 2-3 sentences maximum
+6. Make it feel specific and realistic to their initiative
+
+Example structure:
+"Your team working on the ${initiativeSummary} misses the deadline for ${specificDeliverable}. The public launch is in 3 days, and you need this completed to move forward. What's your first instinct?"
+
+Respond with ONLY the adapted scenario text, nothing else.`
+        }
+      ],
+      temperature: 0.5,
+    }),
+  });
+
+  if (!adaptationResponse.ok) {
+    const errorText = await adaptationResponse.text();
+    console.error('Failed to generate Q5 adapted scenario:', adaptationResponse.status, errorText);
+    throw new Error('Failed to generate Q5 adapted scenario');
+  }
+
+  const adaptationData = await adaptationResponse.json();
+  const adaptedScenario = adaptationData.choices[0].message.content.trim();
+  console.log('Generated Q5 adapted scenario:', adaptedScenario);
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      adaptedScenario,
+      contextSummary: initiativeSummary,
+      specificDeliverable
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
