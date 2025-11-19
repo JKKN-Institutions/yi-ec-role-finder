@@ -423,16 +423,16 @@ Return scores and brief reasoning.`;
       roleExplanation = `Current scores - Personal Ownership (${po}), Impact Readiness (${ir}), Commitment (${will}), Execution (${skill}). Consider building experience before taking on EC responsibilities.`;
     }
 
-    // 7. DETERMINE QUADRANT (for backwards compatibility with existing UI)
-    let quadrant = "developing";
+    // 7. DETERMINE QUADRANT (mapped to Q1-Q4 for database)
+    let quadrant = "Q4"; // developing
     if (will >= 60 && skill >= 60) {
-      quadrant = "leader";
+      quadrant = "Q1"; // leader
     } else if (will >= 60 && skill < 60) {
-      quadrant = "enthusiast";
+      quadrant = "Q2"; // enthusiast
     } else if (will < 60 && skill >= 60) {
-      quadrant = "specialist";
+      quadrant = "Q3"; // specialist
     } else {
-      quadrant = "developing";
+      quadrant = "Q4"; // developing
     }
 
     // 8. MATCH VERTICALS (use Q1 priorities)
