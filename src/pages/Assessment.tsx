@@ -808,47 +808,48 @@ const Assessment = () => {
               <p className="text-sm text-destructive">{validationError}</p>
             </div>
           )}
-
-          <div className="mobile-footer mt-2 flex flex-row justify-between gap-2">
-            <Button
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={currentQuestion === 1}
-              className="btn-mobile h-8 px-3 text-xs"
-              aria-label="Go to previous question"
-            >
-              <ArrowLeft className="mr-1 h-3 w-3" aria-hidden="true" />
-              Previous
-            </Button>
-
-            {currentQuestion < 5 ? (
-              <Button 
-                onClick={handleNext}
-                className="btn-mobile h-8 px-3 text-xs"
-                aria-label="Go to next question"
-              >
-                Next
-                <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
-              </Button>
-            ) : (
-              <Button 
-                onClick={handleSubmit}
-                disabled={isSubmitting} 
-                className="btn-mobile h-8 px-3 text-xs"
-                aria-label="Submit assessment"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" />
-                    Submitting...
-                  </>
-                ) : (
-                  "Submit Assessment"
-                )}
-              </Button>
-            )}
-          </div>
         </Card>
+
+        {/* Navigation Buttons */}
+        <div className="flex flex-row justify-between gap-2 mt-2 mb-2">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentQuestion === 1}
+            className="btn-mobile h-8 px-3 text-xs"
+            aria-label="Go to previous question"
+          >
+            <ArrowLeft className="mr-1 h-3 w-3" aria-hidden="true" />
+            Previous
+          </Button>
+
+          {currentQuestion < 5 ? (
+            <Button 
+              onClick={handleNext}
+              className="btn-mobile h-8 px-3 text-xs"
+              aria-label="Go to next question"
+            >
+              Next
+              <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmit}
+              disabled={isSubmitting} 
+              className="btn-mobile h-8 px-3 text-xs"
+              aria-label="Submit assessment"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Assessment"
+              )}
+            </Button>
+          )}
+        </div>
 
         {/* AI Help Dialog */}
         <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
