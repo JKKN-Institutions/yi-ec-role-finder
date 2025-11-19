@@ -266,11 +266,20 @@ const Assessment = () => {
       );
       if (!question) return;
 
+      // Get adapted question data if available
+      const adaptedData = adaptedQuestions[currentQuestion];
+      
       await supabase.from("assessment_responses").upsert({
         assessment_id: id,
         question_number: currentQuestion,
         question_text: question.title,
         response_data: currentResponse,
+        adapted_question_text: adaptedData?.scenario || null,
+        adaptation_context: adaptedData ? {
+          contextSummary: adaptedData.contextSummary,
+          wasAdapted: true,
+          adaptedAt: new Date().toISOString()
+        } : null,
       });
 
       setResponses({ ...responses, [currentQuestion]: currentResponse });
@@ -280,9 +289,9 @@ const Assessment = () => {
   };
 
   const adaptQuestion = async (questionNumber: number) => {
-    // Only adapt Q2 and Q3 for now
-    if ((questionNumber !== 2 && questionNumber !== 3) || adaptedQuestions[questionNumber]) {
-      return; // Skip if not Q2/Q3 or already adapted
+    // Only adapt Q2, Q3, and Q4
+    if ((questionNumber !== 2 && questionNumber !== 3 && questionNumber !== 4) || adaptedQuestions[questionNumber]) {
+      return; // Skip if not Q2/Q3/Q4 or already adapted
     }
 
     setIsAdaptingQuestion(true);
@@ -372,6 +381,48 @@ const Assessment = () => {
           toast.success('Question personalized based on your initiative design');
         }
       }
+      
+      // Q4 adaptation
+      if (questionNumber === 4) {
+        if (!q1Response || !q1Response.partA || !q2Response || !q2Response.response) {
+          console.log('Q1/Q2 responses not available, using default Q4');
+          return;
+        }
+
+        const selectedVerticalIds = [
+          q1Response.priority1,
+          q1Response.priority2,
+          q1Response.priority3,
+        ].filter(Boolean);
+        
+        const selectedVerticalNames = verticals
+          .filter(v => selectedVerticalIds.includes(v.id))
+          .map(v => v.name);
+
+        const { data, error } = await supabase.functions.invoke('generate-adaptive-question', {
+          body: {
+            questionNumber: 4,
+            previousResponses: {
+              q1_part_a: q1Response.partA,
+              q1_verticals: selectedVerticalNames,
+              q2_initiative: q2Response.response,
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        if (data && data.success) {
+          setAdaptedQuestions(prev => ({
+            ...prev,
+            [questionNumber]: {
+              scenario: data.adaptedScenario,
+              contextSummary: data.contextSummary,
+            }
+          }));
+          toast.success('Question personalized to focus on relevant skills');
+        }
+      }
     } catch (error) {
       console.error('Failed to adapt question:', error);
       // Silently fall back to default question
@@ -388,8 +439,8 @@ const Assessment = () => {
     if (currentQuestion < 5) {
       const nextQuestion = currentQuestion + 1;
       
-      // Adapt the next question before showing it (Q2 and Q3)
-      if (nextQuestion === 2 || nextQuestion === 3) {
+      // Adapt the next question before showing it (Q2, Q3, Q4)
+      if (nextQuestion === 2 || nextQuestion === 3 || nextQuestion === 4) {
         await adaptQuestion(nextQuestion);
       }
       
