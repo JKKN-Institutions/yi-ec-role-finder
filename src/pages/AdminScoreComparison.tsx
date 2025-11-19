@@ -118,24 +118,44 @@ const AdminScoreComparison = () => {
   };
 
   const reanalyzeAll = async () => {
+    console.log('Starting reanalyze all with', comparisons.length, 'assessments');
     setReanalyzing(true);
     let successCount = 0;
     let errorCount = 0;
 
     for (const comparison of comparisons) {
       try {
+        console.log('Reanalyzing assessment:', comparison.id, comparison.user_name);
+        
         const { data, error } = await supabase.functions.invoke("analyze-assessment", {
           body: { assessmentId: comparison.id },
         });
 
-        if (error) throw error;
+        console.log('Edge function response:', { data, error });
 
-        // Load the new results
-        const { data: newResult } = await supabase
+        if (error) {
+          console.error('Edge function error:', error);
+          throw error;
+        }
+
+        // Small delay to allow database to update
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Load the new results with all 4D scores
+        const { data: newResult, error: fetchError } = await supabase
           .from("assessment_results")
-          .select("will_score, skill_score, quadrant, recommended_role")
+          .select("will_score, skill_score, personal_ownership_score, impact_readiness_score, execution_capability_score, quadrant, recommended_role")
           .eq("assessment_id", comparison.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
           .single();
+
+        console.log('Fetched new result:', { newResult, fetchError });
+
+        if (fetchError) {
+          console.error('Error fetching new result:', fetchError);
+          throw fetchError;
+        }
 
         if (newResult) {
           setComparisons((prev) =>
@@ -152,10 +172,16 @@ const AdminScoreComparison = () => {
                 : c
             )
           );
+          console.log('Successfully updated comparison for:', comparison.user_name);
           successCount++;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Error reanalyzing ${comparison.user_name}:`, error);
+        toast({
+          title: `Error analyzing ${comparison.user_name}`,
+          description: error.message || "Unknown error",
+          variant: "destructive"
+        });
         errorCount++;
       }
 
@@ -164,9 +190,11 @@ const AdminScoreComparison = () => {
     }
 
     setReanalyzing(false);
+    console.log('Reanalysis complete:', { successCount, errorCount });
     toast({
       title: "Re-analysis Complete",
       description: `${successCount} successful, ${errorCount} failed`,
+      variant: errorCount > 0 ? "destructive" : "default"
     });
   };
 
@@ -279,7 +307,18 @@ const AdminScoreComparison = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {comparisons.map((comp) => (
+                      {comparisons.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-12">
+                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                              <AlertTriangle className="h-8 w-8" />
+                              <p>No assessments found to compare</p>
+                              <p className="text-sm">Complete some assessments first to see score comparisons</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        comparisons.map((comp) => (
                         <TableRow key={comp.id}>
                           <TableCell>
                             <div>
@@ -328,7 +367,8 @@ const AdminScoreComparison = () => {
                             )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
