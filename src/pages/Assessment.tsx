@@ -131,8 +131,6 @@ const Assessment = () => {
   
   // AI Help state
   const [isAiHelping, setIsAiHelping] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<Array<{title: string, content: string}>>([]);
-  const [showAiSuggestions, setShowAiSuggestions] = useState(false);
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -427,14 +425,20 @@ const Assessment = () => {
         throw error;
       }
 
-      if (!data || !data.suggestions) {
+      if (!data || !data.suggestions || data.suggestions.length === 0) {
         throw new Error('No suggestions received');
       }
 
-      // Show suggestions as clickable cards
-      setAiSuggestions(data.suggestions);
-      setShowAiSuggestions(true);
-      toast.success('Click any suggestion to fill your answer');
+      // Automatically fill with the first suggestion
+      const firstSuggestion = data.suggestions[0].content;
+      
+      if (question.type === 'irritation-vertical') {
+        setCurrentResponse({ ...currentResponse, partA: firstSuggestion });
+      } else if (question.type === 'long-text') {
+        setCurrentResponse({ ...currentResponse, response: firstSuggestion });
+      }
+      
+      toast.success('Form filled with AI suggestion! Feel free to edit it.');
 
     } catch (error) {
       console.error('Error getting AI help:', error);
@@ -442,19 +446,6 @@ const Assessment = () => {
     } finally {
       setIsAiHelping(false);
     }
-  };
-
-  const handleSelectSuggestion = (content: string) => {
-    const question = questionDefinitions[currentQuestion - 1];
-    
-    if (question.type === 'irritation-vertical') {
-      setCurrentResponse({ ...currentResponse, partA: content });
-    } else if (question.type === 'long-text') {
-      setCurrentResponse({ ...currentResponse, response: content });
-    }
-    
-    setShowAiSuggestions(false);
-    toast.success('Suggestion applied! Feel free to edit it.');
   };
 
   const renderQuestion = () => {
@@ -865,37 +856,6 @@ const Assessment = () => {
           )}
         </div>
 
-        {/* AI Suggestions Cards */}
-        {showAiSuggestions && aiSuggestions.length > 0 && (
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-medium text-muted-foreground">Click a suggestion to use it:</p>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="h-6 text-xs"
-                onClick={() => setShowAiSuggestions(false)}
-              >
-                Hide
-              </Button>
-            </div>
-            {aiSuggestions.map((suggestion, index) => (
-              <Card 
-                key={index}
-                className="p-3 cursor-pointer hover:border-primary hover:bg-accent/50 transition-all"
-                onClick={() => handleSelectSuggestion(suggestion.content)}
-              >
-                <div className="flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-foreground mb-1">{suggestion.title}</p>
-                    <p className="text-xs text-muted-foreground line-clamp-3">{suggestion.content}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
