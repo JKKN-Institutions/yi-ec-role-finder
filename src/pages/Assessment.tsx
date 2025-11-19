@@ -340,16 +340,57 @@ const Assessment = () => {
 
     setIsAnalyzingQ1(true);
     try {
-      // TODO: Call edge function to suggest verticals based on text
-      // For now, suggest first 5 verticals as placeholder
-      const suggested = verticals.slice(0, Math.min(5, verticals.length)).map(v => v.id);
+      // Call edge function to suggest verticals based on text
+      const { data, error } = await supabase.functions.invoke('suggest-verticals', {
+        body: { problemDescription: partAText }
+      });
+
+      if (error) {
+        console.error('Error calling suggest-verticals:', error);
+        throw error;
+      }
+
+      if (!data || !data.suggestedVerticals || data.suggestedVerticals.length === 0) {
+        throw new Error('No verticals suggested');
+      }
+
+      const suggested = data.suggestedVerticals;
       setSuggestedVerticals(suggested);
       setHasAnalyzedQ1(true);
-      setCurrentResponse({ ...currentResponse, hasAnalyzed: true, suggestedVerticals: suggested });
-      toast.success("Verticals analyzed and suggested!");
+      setCurrentResponse({ 
+        ...currentResponse, 
+        hasAnalyzed: true, 
+        suggestedVerticals: suggested 
+      });
+
+      // Show success message with vertical names if available
+      if (data.verticalNames && data.verticalNames.length > 0) {
+        toast.success(`Suggested: ${data.verticalNames.slice(0, 3).join(', ')}${data.verticalNames.length > 3 ? ', ...' : ''}`);
+      } else {
+        toast.success("Verticals analyzed and suggested!");
+      }
+
+      // Log fallback notice if applicable
+      if (data.fallback) {
+        console.warn('Using fallback vertical suggestions:', data.message);
+      }
+
     } catch (error) {
       console.error("Error analyzing Q1:", error);
       toast.error("Failed to analyze. Please try again.");
+      
+      // Fallback: suggest first 5 verticals on error
+      if (verticals.length > 0) {
+        const fallbackSuggested = verticals.slice(0, Math.min(5, verticals.length)).map(v => v.id);
+        setSuggestedVerticals(fallbackSuggested);
+        setHasAnalyzedQ1(true);
+        setCurrentResponse({ 
+          ...currentResponse, 
+          hasAnalyzed: true, 
+          suggestedVerticals: fallbackSuggested 
+        });
+        toast.info("Using default suggestions. You can still select from all verticals.");
+      }
     } finally {
       setIsAnalyzingQ1(false);
     }
@@ -439,6 +480,11 @@ const Assessment = () => {
                   </>
                 )}
               </Button>
+              {!hasAnalyzedQ1 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  AI will analyze your problem and suggest the most relevant Yi Erode verticals
+                </p>
+              )}
             </div>
 
             {/* Part B: Vertical Selection */}

@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.seed-test-data]
 verify_jwt = true
+
+[functions.suggest-verticals]
+verify_jwt = false
