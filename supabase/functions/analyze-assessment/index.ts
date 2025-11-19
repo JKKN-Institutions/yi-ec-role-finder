@@ -426,11 +426,11 @@ Return scores and brief reasoning.`;
     // 7. DETERMINE QUADRANT (for backwards compatibility with existing UI)
     let quadrant = "developing";
     if (will >= 60 && skill >= 60) {
-      quadrant = "high-will-high-skill";
+      quadrant = "leader";
     } else if (will >= 60 && skill < 60) {
-      quadrant = "high-will-low-skill";
+      quadrant = "enthusiast";
     } else if (will < 60 && skill >= 60) {
-      quadrant = "low-will-high-skill";
+      quadrant = "specialist";
     } else {
       quadrant = "developing";
     }
