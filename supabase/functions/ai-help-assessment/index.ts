@@ -32,106 +32,147 @@ serve(async (req) => {
 
     if (questionType === 'irritation-vertical') {
       systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment. 
-Help candidates articulate their personal connection to community problems in an authentic, compelling way.
-Provide 3-4 specific writing suggestions that help them:
-1. Express the emotional impact of the problem
+Generate 3 complete, authentic example responses that candidates can choose from.
+Each response should:
+1. Express genuine emotional impact of a community problem
 2. Share a specific moment that drove their concern
 3. Explain why this problem matters personally
 4. Connect their concern to broader community impact
 
-Keep suggestions practical, actionable, and encourage genuine personal reflection.`;
+Make each example DIFFERENT - cover different topics like education, sanitation, youth engagement, infrastructure, or environment.
+Each response should be 150-250 words and feel personal and authentic.`;
 
       userPrompt = `Question: "${questionTitle}"
 Scenario: Describe a problem in Erode/your community that IRRITATES you so much you can't ignore it. What specific moment made you feel 'I have to do something about this'?
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Provide 3-4 specific suggestions to improve this answer. Focus on helping them express authentic personal connection.`;
+Generate 3 complete, different example responses covering different community problems in Erode.`;
 
     } else if (questionType === 'long-text') {
       if (questionNumber === 2) {
         systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-Help candidates design practical, impactful initiatives with clear strategic thinking.
-Provide 3-4 specific suggestions that help them:
+Generate 3 complete, practical initiative design examples that candidates can choose from.
+Each response should:
 1. Define clear, measurable objectives
 2. Identify specific target audiences and how to reach them
 3. Plan concrete activities and partnerships
 4. Explain the expected change/impact
 
-Keep suggestions practical and focused on realistic implementation.`;
+Make each example DIFFERENT - different approaches, strategies, and community problems.
+Each response should be 200-350 words and feel realistic and implementable.`;
 
         userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Provide 3-4 specific suggestions to strengthen their initiative design. Focus on clarity, feasibility, and impact.`;
+Generate 3 complete, different initiative design examples with different approaches to reaching 10,000+ people.`;
 
       } else if (questionNumber === 3) {
         systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-Help candidates honestly express their commitment and boundaries in a weekend emergency scenario.
-Provide 3-4 specific suggestions that help them:
-1. Give an honest, authentic response (not what they think we want to hear)
+Generate 3 complete, honest response examples that candidates can choose from.
+Each response should:
+1. Give an honest, authentic response showing different levels of availability
 2. Explain their reasoning and any constraints they face
 3. Show how they would handle the situation responsibly
-4. Demonstrate self-awareness about their capacity and priorities
+4. Demonstrate self-awareness about their capacity
 
-Encourage genuine reflection over "ideal" answers.`;
+Make each example DIFFERENT - show different commitment levels (immediate yes, conditional yes, apologetic no).
+Each response should be 80-150 words and feel genuine.`;
 
         userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Provide 3-4 specific suggestions to help them express an honest, thoughtful response. Encourage authenticity over perfectionism.`;
+Generate 3 complete, different honest responses showing various commitment levels and boundary-setting approaches.`;
 
       } else if (questionNumber === 4) {
         systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-Help candidates showcase their achievements with specific evidence and reflection.
-Provide 3-4 specific suggestions that help them:
+Generate 3 complete achievement story examples that candidates can choose from.
+Each response should:
 1. Describe what they actually did (actions taken)
+1. Share a specific achievement with concrete details
 2. Explain specific obstacles they overcame
 3. Share measurable outcomes or impact
 4. Reflect on what they learned
 
-Keep suggestions focused on concrete details and genuine learning.`;
+Make each example DIFFERENT - academic, volunteer, personal, professional achievements.
+Each response should be 120-200 words and showcase real impact.`;
 
         userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Provide 3-4 specific suggestions to strengthen their achievement story. Focus on specific details, challenges overcome, and outcomes.`;
+Generate 3 complete, different achievement stories covering different types of accomplishments.`;
       }
 
     } else if (questionType === 'radio') {
       systemPrompt = `You are a helpful assistant for Yi Erode leadership assessment.
-Help candidates understand what each leadership style option reveals about their natural approach.
-Provide a brief explanation of what each option means and when it's most effective.`;
+Provide a brief explanation of what each leadership style option means and when it's most effective.`;
 
       userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current selection: ${currentText || 'None selected yet'}
 
-Provide a brief explanation (3-4 sentences) helping them understand what each leadership style option means and encouraging them to choose based on their natural instinct.`;
+Provide a brief explanation (3-4 sentences) helping them understand what each leadership style option means.`;
     }
 
-    // Call Lovable AI
+    // Call Lovable AI with tool calling for structured output
+    const body: any = {
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.8,
+    };
+
+    // Only use tool calling for non-radio questions
+    if (questionType !== 'radio') {
+      body.tools = [
+        {
+          type: "function",
+          function: {
+            name: "provide_suggestions",
+            description: "Return 3 complete example responses for the assessment question.",
+            parameters: {
+              type: "object",
+              properties: {
+                suggestions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string", description: "Brief title describing this approach (3-5 words)" },
+                      content: { type: "string", description: "Complete response text" }
+                    },
+                    required: ["title", "content"],
+                    additionalProperties: false
+                  },
+                  minItems: 3,
+                  maxItems: 3
+                }
+              },
+              required: ["suggestions"],
+              additionalProperties: false
+            }
+          }
+        }
+      ];
+      body.tool_choice = { type: "function", function: { name: "provide_suggestions" } };
+    }
+
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!aiResponse.ok) {
@@ -141,7 +182,19 @@ Provide a brief explanation (3-4 sentences) helping them understand what each le
     }
 
     const aiData = await aiResponse.json();
-    const suggestions = aiData.choices[0].message.content;
+    
+    let suggestions;
+    if (questionType === 'radio') {
+      suggestions = aiData.choices[0].message.content;
+    } else {
+      const toolCall = aiData.choices[0].message.tool_calls?.[0];
+      if (toolCall && toolCall.function) {
+        const args = JSON.parse(toolCall.function.arguments);
+        suggestions = args.suggestions;
+      } else {
+        throw new Error('No tool call response received');
+      }
+    }
 
     console.log('AI Help generated successfully for Q', questionNumber);
 
