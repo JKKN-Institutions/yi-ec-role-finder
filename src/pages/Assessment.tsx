@@ -50,7 +50,7 @@ const questionDefinitions = [
     type: "irritation-vertical",
     partAInstructions: "Describe a problem in Erode/your community that IRRITATES you so much you can't ignore it. What specific moment made you feel 'I have to do something about this'?",
     partAPlaceholder: "Share the problem that drives you...",
-    partAMinChars: 200,
+    partAMinChars: 100,
     partAMaxChars: 800,
     partBInstructions: "Based on what you described, these Yi Erode verticals might align with your concern. Select your top 3 priorities (rank them):",
   },
@@ -60,7 +60,7 @@ const questionDefinitions = [
     type: "long-text",
     scenario: "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described in Q1. Design your initiative - what would you do, who would you work with, how would you reach 10,000+ people, and what specific change would you create?",
     placeholder: "Describe your initiative design...",
-    minChars: 300,
+    minChars: 100,
     maxChars: 1000,
   },
   {
