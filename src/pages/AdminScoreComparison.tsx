@@ -45,6 +45,7 @@ const AdminScoreComparison = () => {
   const [loading, setLoading] = useState(true);
   const [comparisons, setComparisons] = useState<ComparisonData[]>([]);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [reanalyzingIds, setReanalyzingIds] = useState<Set<string>>(new Set());
   const [showMigrationDialog, setShowMigrationDialog] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const { toast } = useToast();
@@ -198,6 +199,66 @@ const AdminScoreComparison = () => {
     });
   };
 
+  const reanalyzeOne = async (assessmentId: string, userName: string) => {
+    setReanalyzingIds(prev => new Set(prev).add(assessmentId));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-assessment", {
+        body: { assessmentId },
+      });
+
+      if (error) throw error;
+
+      // Small delay to allow database to update
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Load the new results
+      const { data: newResult, error: fetchError } = await supabase
+        .from("assessment_results")
+        .select("will_score, skill_score, personal_ownership_score, impact_readiness_score, execution_capability_score, quadrant, recommended_role")
+        .eq("assessment_id", assessmentId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      if (newResult) {
+        setComparisons((prev) =>
+          prev.map((c) =>
+            c.id === assessmentId
+              ? {
+                  ...c,
+                  new_will: newResult.will_score,
+                  new_skill: newResult.skill_score,
+                  new_quadrant: newResult.quadrant,
+                  new_role: newResult.recommended_role,
+                  analyzed: true,
+                }
+              : c
+          )
+        );
+        toast({
+          title: "Re-analysis Complete",
+          description: `${userName}'s assessment has been re-analyzed`,
+        });
+      }
+    } catch (error: any) {
+      console.error(`Error reanalyzing ${userName}:`, error);
+      toast({
+        title: `Error analyzing ${userName}`,
+        description: error.message || "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setReanalyzingIds(prev => {
+        const next = new Set(prev);
+        next.delete(assessmentId);
+        return next;
+      });
+    }
+  };
+
   const migrateToNewScores = async () => {
     setMigrating(true);
     try {
@@ -304,12 +365,13 @@ const AdminScoreComparison = () => {
                         <TableHead>New Skill</TableHead>
                         <TableHead>Old Role</TableHead>
                         <TableHead>New Role</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {comparisons.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-12">
+                          <TableCell colSpan={8} className="text-center py-12">
                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
                               <AlertTriangle className="h-8 w-8" />
                               <p>No assessments found to compare</p>
@@ -365,6 +427,26 @@ const AdminScoreComparison = () => {
                             ) : (
                               <span className="text-muted-foreground text-sm">Not analyzed</span>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => reanalyzeOne(comp.id, comp.user_name)}
+                              disabled={reanalyzingIds.has(comp.id) || reanalyzing}
+                            >
+                              {reanalyzingIds.has(comp.id) ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Analyzing...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                  Reanalyze
+                                </>
+                              )}
+                            </Button>
                           </TableCell>
                         </TableRow>
                         ))
