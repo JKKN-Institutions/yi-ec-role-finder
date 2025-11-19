@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      adaptation_analytics: {
+        Row: {
+          adaptation_context: Json | null
+          adaptation_success: boolean | null
+          adaptation_time_ms: number | null
+          ai_help_accepted: boolean | null
+          ai_help_used: boolean | null
+          assessment_id: string
+          created_at: string
+          fallback_used: boolean | null
+          id: string
+          question_number: number
+          response_completed: boolean
+          response_length: number | null
+          time_to_complete_seconds: number | null
+          was_adapted: boolean
+        }
+        Insert: {
+          adaptation_context?: Json | null
+          adaptation_success?: boolean | null
+          adaptation_time_ms?: number | null
+          ai_help_accepted?: boolean | null
+          ai_help_used?: boolean | null
+          assessment_id: string
+          created_at?: string
+          fallback_used?: boolean | null
+          id?: string
+          question_number: number
+          response_completed?: boolean
+          response_length?: number | null
+          time_to_complete_seconds?: number | null
+          was_adapted?: boolean
+        }
+        Update: {
+          adaptation_context?: Json | null
+          adaptation_success?: boolean | null
+          adaptation_time_ms?: number | null
+          ai_help_accepted?: boolean | null
+          ai_help_used?: boolean | null
+          assessment_id?: string
+          created_at?: string
+          fallback_used?: boolean | null
+          id?: string
+          question_number?: number
+          response_completed?: boolean
+          response_length?: number | null
+          time_to_complete_seconds?: number | null
+          was_adapted?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adaptation_analytics_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_audit_log: {
         Row: {
           action_type: string

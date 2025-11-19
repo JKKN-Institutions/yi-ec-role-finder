@@ -450,6 +450,14 @@ const Assessment = () => {
               contextSummary: data.contextSummary,
             }
           }));
+        if (data && data.success) {
+          setAdaptedQuestions(prev => ({
+            ...prev,
+            [questionNumber]: {
+              scenario: data.adaptedScenario,
+              contextSummary: data.contextSummary,
+            }
+          }));
           toast.success('Leadership scenario personalized to your initiative');
         }
       }

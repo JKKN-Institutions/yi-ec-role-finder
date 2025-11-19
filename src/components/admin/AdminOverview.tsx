@@ -22,6 +22,7 @@ import { ActiveAdminsWidget } from "./ActiveAdminsWidget";
 import { TestAssessmentSeeder } from "./TestAssessmentSeeder";
 import { TestDataCleanup } from "./TestDataCleanup";
 import { AnalyticsWidget } from "./AnalyticsWidget";
+import { CreateDemoAssessment } from "./CreateDemoAssessment";
 
 interface Stats {
   totalAssessments: number;
@@ -524,9 +525,14 @@ export function AdminOverview() {
         </div>
       </Card>
 
-      {/* Test Assessment Generator */}
-          <TestAssessmentSeeder />
-          <TestDataCleanup />
+      {/* Test Data & Demo Section */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <CreateDemoAssessment />
+        <TestAssessmentSeeder />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <TestDataCleanup />
+      </div>
     </div>
   );
 }
