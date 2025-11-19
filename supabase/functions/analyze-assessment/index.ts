@@ -7,15 +7,14 @@ const corsHeaders = {
 };
 
 interface ResponseData {
-  text?: string;
+  partA?: string;
   priority1?: string;
   priority2?: string;
   priority3?: string;
   response?: string;
-  statement?: string;
-  constraint?: string;
-  handling?: string;
-  leadership_style?: string;
+  leadershipStyle?: string;
+  hasAnalyzed?: boolean;
+  suggestedVerticals?: string[];
 }
 
 interface AssessmentResponse {
@@ -39,7 +38,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. FETCH DATA
+    // 1. FETCH ASSESSMENT DATA
     const { data: assessment } = await supabase
       .from("assessments")
       .select("*")
@@ -92,7 +91,7 @@ serve(async (req) => {
             const errorText = await response.text();
             console.error(`AI Gateway error (attempt ${attempt + 1}):`, response.status, errorText);
             if (attempt < maxRetries) {
-              await new Promise((resolve) => setTimeout(resolve, 5000));
+              await new Promise((resolve) => setTimeout(resolve, 3000));
               continue;
             }
             throw new Error(`AI Gateway error: ${response.status}`);
@@ -102,7 +101,7 @@ serve(async (req) => {
         } catch (error) {
           console.error(`AI call failed (attempt ${attempt + 1}):`, error);
           if (attempt < maxRetries) {
-            await new Promise((resolve) => setTimeout(resolve, 5000));
+            await new Promise((resolve) => setTimeout(resolve, 3000));
             continue;
           }
           throw error;
@@ -110,108 +109,65 @@ serve(async (req) => {
       }
     };
 
-    // 2. CALCULATE WILL SCORE (0-100)
-    let willScore = 0;
-    const willBreakdown: any = {};
-
-    // Q1 - Vertical Preferences (0 points - informational only)
-    willBreakdown.vertical_preferences = 0;
-
-    // Q3 - Achievement Statement (0-25 points) - More generous scoring
-    const q3Data = responseMap[3].response_data;
-    const achievementText = q3Data.statement || "";
-    let q3Score = 5; // Base score for attempting
-
-    // Contains specific numbers (3 points each, max 10)
-    const numbers = achievementText.match(/\d+/g);
-    if (numbers && numbers.length > 0) {
-      q3Score += Math.min(numbers.length * 3, 10);
-    }
-
-    // Contains action verbs or achievement indicators (3 points each, max 8)
-    const actionVerbs = ["built", "launched", "created", "increased", "grew", "led", "delivered", "achieved", "organized", "coordinated", "managed", "developed"];
-    const verbMatches = actionVerbs.filter((verb) =>
-      achievementText.toLowerCase().includes(verb)
-    );
-    q3Score += Math.min(verbMatches.length * 3, 8);
-
-    // Meaningful content bonus (any response > 50 chars gets +2)
-    if (achievementText.length > 50) {
-      q3Score += 2;
-    }
-
-    willBreakdown.achievement = Math.min(q3Score, 25);
-    willScore += willBreakdown.achievement;
-
-    // Q4 - Constraints (0-25 points) - More realistic scoring
-    const q4Data = responseMap[4].response_data;
-    const constraint = q4Data.constraint || "";
-    const handling = q4Data.handling || "";
-    let q4Score = 0;
-
-    if (constraint === "none") q4Score = 25;
-    else if (constraint === "time") q4Score = 20;
-    else if (constraint === "expectations") q4Score = 15;
-    else if (constraint === "skills") q4Score = 12;
-
-    // Bonus for thoughtful handling (any constraint with explanation shows self-awareness)
-    if (constraint !== "none" && handling.length > 20) {
-      q4Score = Math.min(q4Score + 8, 25);
-    }
-
-    willBreakdown.constraints = q4Score;
-    willScore += q4Score;
-
-    // Q5 - Leadership Style (0-20 points)
-    const q5Data = responseMap[5].response_data;
-    const leadershipStyle = q5Data.leadership_style || "";
-    let q5Score = 0;
-
-    if (leadershipStyle === "leader" || leadershipStyle === "strategic") q5Score = 20;
-    else if (leadershipStyle === "doer") q5Score = 15;
-    else if (leadershipStyle === "learning") q5Score = 10;
-
-    willBreakdown.leadership_style = q5Score;
-    willScore += q5Score;
-
-    // Q2 - Saturday Scenario (0-25 points, AI-scored)
+    // Extract response data
+    const q1Data = responseMap[1].response_data;
     const q2Data = responseMap[2].response_data;
-    const scenarioResponse = q2Data.response || "";
+    const q3Data = responseMap[3].response_data;
+    const q4Data = responseMap[4].response_data;
+    const q5Data = responseMap[5].response_data;
 
-    let q2Score = 20; // Fallback score (more generous)
-    let q2Reasoning = "Using fallback scoring";
+    const problemDescription = q1Data.partA || "";
+    const initiativeDesign = q2Data.response || "";
+    const saturdayResponse = q3Data.response || "";
+    const achievementStory = q4Data.response || "";
+    const leadershipStyle = q5Data.leadershipStyle || "";
+
+    // 2. CALCULATE PERSONAL OWNERSHIP SCORE (Q1) - 0-100
+    let personalOwnershipScore = 50; // Fallback
+    let personalOwnershipBreakdown: any = {
+      emotional_connection: 12,
+      specific_moment: 12,
+      personal_stakes: 13,
+      community_impact: 13,
+      reasoning: "Using fallback scoring due to AI unavailability"
+    };
 
     try {
-      const q2Prompt = `Analyze this emergency response for commitment level from a STUDENT LEADER perspective. Score 0-30 based on:
-- Willingness to help (0-10 points): Any indication of joining = 6-10 points
-- Attitude (0-10 points): Neutral/willing = 5-7, Enthusiastic = 8-10
-- Solutions to constraints (0-5 points): Acknowledging limitations = 3-5
-- Team focus (0-5 points): Showing up = 3-5 points
+      const poPrompt = `You are analyzing Q1 of a leadership assessment. Score how deeply this candidate cares about a community problem.
 
-Be GENEROUS - these are students balancing commitments, not full-time professionals.
+QUESTION: "Describe a problem in Erode/your community that IRRITATES you so much you can't ignore it. What specific moment made you feel 'I have to do something about this'?"
 
-Response: "${scenarioResponse}"
+RESPONSE: "${problemDescription}"
 
-Provide a score (15-30 range for anyone showing up) and brief reasoning.`;
+Score 0-25 points for each dimension (be generous with 12-20 for reasonable effort):
+1. EMOTIONAL CONNECTION (0-25): How deeply do they feel about this? Any personal irritation = 12-15, strong emotion = 16-20, visceral passion = 21-25
+2. SPECIFIC MOMENT (0-25): Did they share a concrete moment? Vague mention = 10-14, some detail = 15-19, vivid story = 20-25
+3. PERSONAL STAKES (0-25): Why does this matter to THEM? Some relevance = 12-16, clear personal connection = 17-21, deeply personal = 22-25
+4. COMMUNITY IMPACT (0-25): Do they connect personal to community? Basic awareness = 12-16, clear connection = 17-21, systemic view = 22-25
 
-      const q2Result = await callAI(
+Return scores and brief reasoning.`;
+
+      const poResult = await callAI(
         [
-          { role: "system", content: "You are an expert at assessing commitment and willingness." },
-          { role: "user", content: q2Prompt }
+          { role: "system", content: "You are an expert at assessing personal ownership and authentic passion." },
+          { role: "user", content: poPrompt }
         ],
         [
           {
             type: "function",
             function: {
-              name: "score_commitment",
-              description: "Score the commitment level",
+              name: "score_personal_ownership",
+              description: "Score personal ownership of a community problem",
               parameters: {
                 type: "object",
                 properties: {
-                  score: { type: "integer", minimum: 0, maximum: 30 },
+                  emotional_connection: { type: "integer", minimum: 0, maximum: 25 },
+                  specific_moment: { type: "integer", minimum: 0, maximum: 25 },
+                  personal_stakes: { type: "integer", minimum: 0, maximum: 25 },
+                  community_impact: { type: "integer", minimum: 0, maximum: 25 },
                   reasoning: { type: "string" }
                 },
-                required: ["score", "reasoning"],
+                required: ["emotional_connection", "specific_moment", "personal_stakes", "community_impact", "reasoning"],
                 additionalProperties: false
               }
             }
@@ -219,51 +175,189 @@ Provide a score (15-30 range for anyone showing up) and brief reasoning.`;
         ]
       );
 
-      const toolCall = q2Result.choices[0].message.tool_calls[0];
-      const q2Analysis = JSON.parse(toolCall.function.arguments);
-      q2Score = q2Analysis.score;
-      q2Reasoning = q2Analysis.reasoning;
+      const toolCall = poResult.choices[0].message.tool_calls[0];
+      personalOwnershipBreakdown = JSON.parse(toolCall.function.arguments);
+      personalOwnershipScore = 
+        personalOwnershipBreakdown.emotional_connection +
+        personalOwnershipBreakdown.specific_moment +
+        personalOwnershipBreakdown.personal_stakes +
+        personalOwnershipBreakdown.community_impact;
     } catch (error) {
-      console.error("Q2 AI scoring failed, using fallback:", error);
+      console.error("Personal Ownership scoring failed:", error);
     }
 
-    willBreakdown.saturday_scenario = { score: q2Score, reasoning: q2Reasoning };
-    willScore += q2Score;
+    console.log(`Personal Ownership Score: ${personalOwnershipScore}`, personalOwnershipBreakdown);
 
-    console.log(`WILL Score: ${willScore}`, willBreakdown);
-
-    // 3. CALCULATE SKILL SCORE (0-100, AI-based)
-    const q1Data = responseMap[1].response_data;
-    const skillPrompt = `You are analyzing a leadership assessment for STUDENT LEADERS at Yi Erode Executive Committee. Focus on POTENTIAL and INTENT, not polish.
-
-RESPONSES:
-Q1 - Vertical Preferences: Priority 1: ${q1Data.priority1 || "N/A"}, Priority 2: ${q1Data.priority2 || "N/A"}, Priority 3: ${q1Data.priority3 || "N/A"}
-Q2 - Saturday Emergency: ${scenarioResponse}
-Q3 - Achievement Statement: ${achievementText}
-Q4 - Constraints: ${constraint} - ${handling || "No handling explanation"}
-Q5 - Leadership Style: ${leadershipStyle}
-
-Score each dimension 0-25 points. BE GENEROUS - base score 12-15 for reasonable effort:
-1. SOPHISTICATION (0-25): Can they communicate their ideas? IGNORE typos/grammar. Basic clarity = 12-15, good = 16-20, excellent = 21-25
-2. STRATEGIC THINKING (0-25): Do they show any planning or problem-solving? Any approach mentioned = 12-18, detailed = 19-25
-3. OUTCOME ORIENTATION (0-25): Do they mention goals or results? Any result/goal = 12-18, specific outcomes = 19-25
-4. LEADERSHIP SIGNALS (0-25): Do they show initiative or responsibility? Any proactive behavior = 12-18, clear leadership = 19-25
-
-Return the scores and reasoning.`;
-
-    let skillScore = 50; // Fallback
-    let skillBreakdown: any = {
-      sophistication: 12,
-      strategic_thinking: 13,
-      outcome_orientation: 12,
-      leadership_signals: 13,
+    // 3. CALCULATE IMPACT READINESS SCORE (Q2) - 0-100
+    let impactReadinessScore = 50; // Fallback
+    let impactReadinessBreakdown: any = {
+      strategic_thinking: 12,
+      scale_planning: 13,
+      resource_awareness: 12,
+      measurable_outcomes: 13,
       reasoning: "Using fallback scoring due to AI unavailability"
     };
 
     try {
+      const irPrompt = `You are analyzing Q2 of a leadership assessment. Score how ready this candidate is to create real impact.
+
+QUESTION: "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described. Design your initiative - what would you do, who would you work with, how would you reach 10,000+ people, and what specific change would you create?"
+
+RESPONSE: "${initiativeDesign}"
+
+Score 0-25 points for each dimension:
+1. STRATEGIC THINKING (0-25): Is there a clear plan? Vague ideas = 8-12, some structure = 13-18, detailed strategy = 19-25
+2. SCALE PLANNING (0-25): Can they realistically reach 10,000+ people? No scale plan = 5-10, some approach = 11-17, concrete plan = 18-25
+3. RESOURCE AWARENESS (0-25): Do they understand 6 months and ₹50K constraints? Unrealistic = 5-10, somewhat aware = 11-17, practical = 18-25
+4. MEASURABLE OUTCOMES (0-25): Can they define specific change? Vague goals = 8-12, some clarity = 13-18, specific metrics = 19-25
+
+Return scores and brief reasoning.`;
+
+      const irResult = await callAI(
+        [
+          { role: "system", content: "You are an expert at assessing initiative design and impact planning." },
+          { role: "user", content: irPrompt }
+        ],
+        [
+          {
+            type: "function",
+            function: {
+              name: "score_impact_readiness",
+              description: "Score readiness to create measurable impact",
+              parameters: {
+                type: "object",
+                properties: {
+                  strategic_thinking: { type: "integer", minimum: 0, maximum: 25 },
+                  scale_planning: { type: "integer", minimum: 0, maximum: 25 },
+                  resource_awareness: { type: "integer", minimum: 0, maximum: 25 },
+                  measurable_outcomes: { type: "integer", minimum: 0, maximum: 25 },
+                  reasoning: { type: "string" }
+                },
+                required: ["strategic_thinking", "scale_planning", "resource_awareness", "measurable_outcomes", "reasoning"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      );
+
+      const toolCall = irResult.choices[0].message.tool_calls[0];
+      impactReadinessBreakdown = JSON.parse(toolCall.function.arguments);
+      impactReadinessScore = 
+        impactReadinessBreakdown.strategic_thinking +
+        impactReadinessBreakdown.scale_planning +
+        impactReadinessBreakdown.resource_awareness +
+        impactReadinessBreakdown.measurable_outcomes;
+    } catch (error) {
+      console.error("Impact Readiness scoring failed:", error);
+    }
+
+    console.log(`Impact Readiness Score: ${impactReadinessScore}`, impactReadinessBreakdown);
+
+    // 4. CALCULATE WILL SCORE (Q3) - 0-100
+    let willScore = 50; // Fallback
+    let willBreakdown: any = {
+      immediate_response: 12,
+      sacrifice_willingness: 13,
+      problem_solving: 12,
+      reliability: 13,
+      reasoning: "Using fallback scoring due to AI unavailability"
+    };
+
+    try {
+      const willPrompt = `You are analyzing Q3 of a leadership assessment. Score the candidate's commitment and willingness to show up when needed.
+
+QUESTION: "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event. Can you come to the office now for 3-4 hours?' What's your honest response?"
+
+RESPONSE: "${saturdayResponse}"
+
+Score 0-25 points for each dimension (value HONESTY over "perfect" answers):
+1. IMMEDIATE RESPONSE (0-25): What's their first instinct? Clear no = 5-10, maybe/conditional = 11-17, immediate yes = 18-25
+2. SACRIFICE WILLINGNESS (0-25): Will they prioritize Yi over personal time? Not willing = 5-10, reluctant but willing = 11-17, eager = 18-25
+3. PROBLEM SOLVING (0-25): Do they think about how to help? No alternatives = 8-12, some solutions = 13-18, proactive = 19-25
+4. RELIABILITY (0-25): Can Yi count on them in crisis? Unreliable = 5-10, situational = 11-17, dependable = 18-25
+
+Be honest in scoring - "no but here's why" shows self-awareness and is better than fake enthusiasm.
+
+Return scores and brief reasoning.`;
+
+      const willResult = await callAI(
+        [
+          { role: "system", content: "You are an expert at assessing commitment and reliability." },
+          { role: "user", content: willPrompt }
+        ],
+        [
+          {
+            type: "function",
+            function: {
+              name: "score_will",
+              description: "Score commitment and willingness to sacrifice",
+              parameters: {
+                type: "object",
+                properties: {
+                  immediate_response: { type: "integer", minimum: 0, maximum: 25 },
+                  sacrifice_willingness: { type: "integer", minimum: 0, maximum: 25 },
+                  problem_solving: { type: "integer", minimum: 0, maximum: 25 },
+                  reliability: { type: "integer", minimum: 0, maximum: 25 },
+                  reasoning: { type: "string" }
+                },
+                required: ["immediate_response", "sacrifice_willingness", "problem_solving", "reliability", "reasoning"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      );
+
+      const toolCall = willResult.choices[0].message.tool_calls[0];
+      willBreakdown = JSON.parse(toolCall.function.arguments);
+      willScore = 
+        willBreakdown.immediate_response +
+        willBreakdown.sacrifice_willingness +
+        willBreakdown.problem_solving +
+        willBreakdown.reliability;
+    } catch (error) {
+      console.error("WILL scoring failed:", error);
+    }
+
+    console.log(`WILL Score: ${willScore}`, willBreakdown);
+
+    // 5. CALCULATE SKILL SCORE (Q4 + Q5) - 0-100
+    let skillScore = 50; // Fallback
+    let skillBreakdown: any = {
+      achievement_quality: 15,
+      obstacle_navigation: 15,
+      outcome_focus: 10,
+      leadership_approach: 10,
+      reasoning: "Using fallback scoring due to AI unavailability"
+    };
+
+    try {
+      const skillPrompt = `You are analyzing Q4 and Q5 of a leadership assessment. Score the candidate's execution capability and leadership track record.
+
+Q4 - "Describe your most significant achievement in the last 2 years - something you're genuinely proud of. What did you do, what obstacles did you face, and what was the outcome?"
+RESPONSE: "${achievementStory}"
+
+Q5 - "Your team misses a critical deadline. What's your first instinct?"
+RESPONSE: ${leadershipStyle}
+
+Score these dimensions:
+1. ACHIEVEMENT QUALITY (0-30): How significant is their achievement? Minor = 10-15, notable = 16-23, exceptional = 24-30
+2. OBSTACLE NAVIGATION (0-30): How well did they handle challenges? No obstacles mentioned = 5-12, some challenges = 13-21, significant obstacles overcome = 22-30
+3. OUTCOME FOCUS (0-20): Are outcomes clear and measurable? Vague = 5-10, some detail = 11-15, specific results = 16-20
+4. LEADERSHIP APPROACH (0-20): Does their natural style fit EC work? Poor fit = 5-10, okay fit = 11-15, strong fit = 16-20
+
+Consider leadership style meanings:
+- "leader": Takes ownership, rallies team (Chair/Co-Chair profile)
+- "doer": Gets hands dirty, delivers (Vertical Lead profile)
+- "learning": Reflects, improves process (EM/Advisor profile)
+- "strategic": Assesses impact, prioritizes (Chair/Advisor profile)
+
+Return scores and brief reasoning.`;
+
       const skillResult = await callAI(
         [
-          { role: "system", content: "You are an expert EC assessor evaluating candidates." },
+          { role: "system", content: "You are an expert at assessing execution capability and leadership potential." },
           { role: "user", content: skillPrompt }
         ],
         [
@@ -271,17 +365,17 @@ Return the scores and reasoning.`;
             type: "function",
             function: {
               name: "score_skill",
-              description: "Score the skill level across dimensions",
+              description: "Score execution capability and leadership track record",
               parameters: {
                 type: "object",
                 properties: {
-                  sophistication: { type: "integer", minimum: 0, maximum: 25 },
-                  strategic_thinking: { type: "integer", minimum: 0, maximum: 25 },
-                  outcome_orientation: { type: "integer", minimum: 0, maximum: 25 },
-                  leadership_signals: { type: "integer", minimum: 0, maximum: 25 },
+                  achievement_quality: { type: "integer", minimum: 0, maximum: 30 },
+                  obstacle_navigation: { type: "integer", minimum: 0, maximum: 30 },
+                  outcome_focus: { type: "integer", minimum: 0, maximum: 20 },
+                  leadership_approach: { type: "integer", minimum: 0, maximum: 20 },
                   reasoning: { type: "string" }
                 },
-                required: ["sophistication", "strategic_thinking", "outcome_orientation", "leadership_signals", "reasoning"],
+                required: ["achievement_quality", "obstacle_navigation", "outcome_focus", "leadership_approach", "reasoning"],
                 additionalProperties: false
               }
             }
@@ -291,161 +385,99 @@ Return the scores and reasoning.`;
 
       const toolCall = skillResult.choices[0].message.tool_calls[0];
       skillBreakdown = JSON.parse(toolCall.function.arguments);
-      skillScore = skillBreakdown.sophistication + skillBreakdown.strategic_thinking +
-        skillBreakdown.outcome_orientation + skillBreakdown.leadership_signals;
+      skillScore = 
+        skillBreakdown.achievement_quality +
+        skillBreakdown.obstacle_navigation +
+        skillBreakdown.outcome_focus +
+        skillBreakdown.leadership_approach;
     } catch (error) {
-      console.error("Skill AI scoring failed, using fallback:", error);
+      console.error("SKILL scoring failed:", error);
     }
 
     console.log(`SKILL Score: ${skillScore}`, skillBreakdown);
 
-    // 4. DETERMINE QUADRANT (Adjusted thresholds for student leaders)
-    let quadrant = "";
-    if (willScore >= 55 && skillScore >= 50) quadrant = "Q1";
-    else if (willScore >= 55 && skillScore < 50) quadrant = "Q2";
-    else if (willScore < 55 && skillScore < 50) quadrant = "Q3";
-    else quadrant = "Q4";
-
-    const quadrantLabels: Record<string, string> = {
-      Q1: "STAR",
-      Q2: "WILLING",
-      Q3: "NOT READY",
-      Q4: "RELUCTANT"
-    };
-
-    console.log(`Quadrant: ${quadrant} - ${quadrantLabels[quadrant]}`);
-
-    // 5. RECOMMEND ROLE (More accessible criteria)
-    let recommendedRole = "";
+    // 6. DETERMINE ROLE BASED ON 4D THRESHOLDS
+    let recommendedRole = "EC Member";
     let roleExplanation = "";
 
-    if (quadrant === "Q1") {
-      recommendedRole = willScore >= 70 ? "Chair" : "Co-Chair";
-      roleExplanation = `As a ${quadrantLabels[quadrant]} candidate with strong WILL (${willScore}) and SKILL (${skillScore}), you demonstrate both motivation and capability for senior leadership. ${
-        willScore >= 70 ? "Your exceptional commitment qualifies you for the Chair position." : "You're well-suited for the Co-Chair role."
-      }`;
-    } else if (quadrant === "Q2") {
-      recommendedRole = willScore >= 65 ? "Executive Member (EM)" : "Vertical Lead";
-      roleExplanation = `Your strong WILL (${willScore}) shows excellent commitment. While your SKILL (${skillScore}) is developing, you'd thrive in ${
-        willScore >= 65 ? "an Executive Member role with mentorship" : "a Vertical Lead position to build experience"
-      }.`;
-    } else if (quadrant === "Q4") {
-      recommendedRole = skillScore >= 60 ? "Technical Advisor" : "Subject Matter Expert";
-      roleExplanation = `Your strong SKILL (${skillScore}) is valuable. Though your WILL (${willScore}) suggests limited availability, you'd excel ${
-        skillScore >= 60 ? "as a Technical Advisor" : "contributing as a Subject Matter Expert"
-      }.`;
+    const po = personalOwnershipScore;
+    const ir = impactReadinessScore;
+    const will = willScore;
+    const skill = skillScore;
+
+    // Role thresholds (in priority order)
+    if (po >= 70 && ir >= 60 && will >= 65 && skill >= 60) {
+      recommendedRole = "Chair / Co-Chair";
+      roleExplanation = `Strong across all dimensions - Personal Ownership (${po}), Impact Readiness (${ir}), Commitment (${will}), and Execution (${skill}). Ready for top leadership roles.`;
+    } else if (po >= 60 && ir >= 50 && will >= 55 && skill >= 50) {
+      recommendedRole = "Vertical Lead";
+      roleExplanation = `Solid performance across dimensions - Personal Ownership (${po}), Impact Readiness (${ir}), Commitment (${will}), and Execution (${skill}). Well-suited to lead a specific vertical.`;
+    } else if (po >= 50 && ir >= 40 && will >= 50 && skill >= 45) {
+      recommendedRole = "EC Member";
+      roleExplanation = `Good baseline in all areas - Personal Ownership (${po}), Impact Readiness (${ir}), Commitment (${will}), and Execution (${skill}). Ready to contribute as an EC member.`;
+    } else if (po >= 40 && (ir >= 70 || skill >= 70) && will >= 40) {
+      recommendedRole = "Advisor / Specialist";
+      roleExplanation = `Exceptional in specific area${ir >= 70 ? ' (Impact Planning)' : ' (Execution)'}. Personal Ownership (${po}), Impact Readiness (${ir}), Commitment (${will}), Execution (${skill}). Best suited for specialized advisory role.`;
     } else {
-      // Q3 - but be more nuanced
-      if (willScore >= 45 || skillScore >= 40) {
-        recommendedRole = "Vertical Lead";
-        roleExplanation = `Your WILL (${willScore}) and SKILL (${skillScore}) show good potential. Starting as a Vertical Lead will help you build experience and grow into senior roles.`;
-      } else {
-        recommendedRole = "Active Volunteer";
-        roleExplanation = `Starting as an Active Volunteer allows you to build experience and discover your passion within Yi as you develop your WILL (${willScore}) and SKILL (${skillScore}).`;
-      }
+      recommendedRole = "Needs Development";
+      roleExplanation = `Current scores - Personal Ownership (${po}), Impact Readiness (${ir}), Commitment (${will}), Execution (${skill}). Consider building experience before taking on EC responsibilities.`;
     }
 
-    // 6. VERTICAL MATCHING
+    // 7. DETERMINE QUADRANT (for backwards compatibility with existing UI)
+    let quadrant = "developing";
+    if (will >= 60 && skill >= 60) {
+      quadrant = "high-will-high-skill";
+    } else if (will >= 60 && skill < 60) {
+      quadrant = "high-will-low-skill";
+    } else if (will < 60 && skill >= 60) {
+      quadrant = "low-will-high-skill";
+    } else {
+      quadrant = "developing";
+    }
+
+    // 8. MATCH VERTICALS (use Q1 priorities)
     const { data: allVerticals } = await supabase
       .from("verticals")
       .select("id, name")
       .eq("is_active", true)
       .order("display_order");
 
-    const verticalsList = allVerticals?.map((v) => v.name).join(", ") || "";
-    const q1Prefs = [q1Data.priority1, q1Data.priority2, q1Data.priority3]
-      .filter(Boolean)
-      .join(", ");
-
     let verticalMatches: string[] = [];
 
-    try {
-      const verticalPrompt = `Based on the candidate's preferences and profile, select the top 3 verticals they'd be best suited for.
+    // Use candidate's Q1 selections directly
+    verticalMatches = [q1Data.priority1, q1Data.priority2, q1Data.priority3]
+      .filter(Boolean) as string[];
 
-Available Verticals: ${verticalsList}
-Candidate Preferences: ${q1Prefs}
-Commitment Level: ${willScore >= 60 ? "High" : "Developing"}
-Leadership Style: ${leadershipStyle}
-Achievement Focus: ${achievementText.substring(0, 100)}...
+    // 9. GENERATE KEY INSIGHTS AND RECOMMENDATIONS
+    const insightsPrompt = `Provide strategic insights for this leadership candidate:
 
-Select the 3 best-fit verticals in priority order.`;
+SCORES (0-100 scale):
+- Personal Ownership: ${personalOwnershipScore} (passion for community problem)
+- Impact Readiness: ${impactReadinessScore} (ability to create change at scale)
+- WILL (Commitment): ${willScore} (willingness to sacrifice for the cause)
+- SKILL (Execution): ${skillScore} (track record of getting things done)
 
-      const verticalResult = await callAI(
-        [
-          { role: "system", content: "You are matching candidates to organizational verticals." },
-          { role: "user", content: verticalPrompt }
-        ],
-        [
-          {
-            type: "function",
-            function: {
-              name: "match_verticals",
-              description: "Select the top 3 vertical matches",
-              parameters: {
-                type: "object",
-                properties: {
-                  vertical_names: {
-                    type: "array",
-                    items: { type: "string" },
-                    minItems: 1,
-                    maxItems: 3
-                  }
-                },
-                required: ["vertical_names"],
-                additionalProperties: false
-              }
-            }
-          }
-        ]
-      );
+RECOMMENDED ROLE: ${recommendedRole}
+LEADERSHIP STYLE: ${leadershipStyle}
 
-      const toolCall = verticalResult.choices[0].message.tool_calls[0];
-      const matchResult = JSON.parse(toolCall.function.arguments);
+KEY RESPONSES:
+Problem they care about: "${problemDescription.substring(0, 200)}..."
+Initiative idea: "${initiativeDesign.substring(0, 200)}..."
+Achievement: "${achievementStory.substring(0, 150)}..."
 
-      // Convert names to IDs
-      if (allVerticals && matchResult.vertical_names) {
-        verticalMatches = allVerticals
-          .filter((v) => matchResult.vertical_names.includes(v.name))
-          .map((v) => v.id);
-      }
-    } catch (error) {
-      console.error("Vertical matching failed:", error);
-      // Use user preferences as fallback
-      verticalMatches = [q1Data.priority1, q1Data.priority2, q1Data.priority3].filter(Boolean) as string[];
-    }
+Provide:
+1. Top 3 strengths (be specific to their responses)
+2. Top 3 development areas (actionable areas for growth)
+3. 3-4 specific recommendations for their Yi Erode journey`;
 
-    // 7. GENERATE INSIGHTS
-    const insightsPrompt = `Provide strategic insights about this candidate:
-
-Scores: WILL=${willScore}, SKILL=${skillScore}
-Quadrant: ${quadrant} - ${quadrantLabels[quadrant]}
-Leadership Style: ${leadershipStyle}
-
-Key Responses:
-- Achievement: "${achievementText}"
-- Constraint Handling: ${constraint} - "${handling}"
-- Emergency Response: "${scenarioResponse.substring(0, 150)}..."
-
-Provide insights and recommendations.`;
-
-    let insights: any = {
-      leadership_style: leadershipStyle || "Developing Leader",
-      top_strengths: ["Engaged", "Willing to learn", "Team-oriented"],
-      development_areas: ["Build leadership experience", "Develop strategic thinking"],
-      commitment_level: willScore >= 60 ? "High" : "Developing",
-      skill_readiness: skillScore >= 60 ? "Ready" : "Developing"
-    };
-
-    let recommendations: string[] = [
-      "Attend Yi leadership workshops",
-      "Shadow current EC members",
-      "Take on project leadership roles"
-    ];
+    let keyStrengths: string[] = ["Engaged and willing to contribute", "Shows up when needed", "Team-oriented approach"];
+    let developmentAreas: string[] = ["Build leadership experience", "Develop strategic thinking", "Strengthen execution skills"];
+    let recommendations: string[] = ["Attend Yi leadership workshops", "Shadow current EC members", "Take on small project leadership roles"];
 
     try {
       const insightsResult = await callAI(
         [
-          { role: "system", content: "You are providing strategic career development insights." },
+          { role: "system", content: "You are providing career development insights for student leaders." },
           { role: "user", content: insightsPrompt }
         ],
         [
@@ -457,8 +489,7 @@ Provide insights and recommendations.`;
               parameters: {
                 type: "object",
                 properties: {
-                  leadership_style: { type: "string" },
-                  top_strengths: {
+                  key_strengths: {
                     type: "array",
                     items: { type: "string" },
                     minItems: 3,
@@ -467,19 +498,17 @@ Provide insights and recommendations.`;
                   development_areas: {
                     type: "array",
                     items: { type: "string" },
-                    minItems: 1,
-                    maxItems: 2
+                    minItems: 3,
+                    maxItems: 3
                   },
-                  commitment_level: { type: "string" },
-                  skill_readiness: { type: "string" },
                   recommendations: {
                     type: "array",
                     items: { type: "string" },
                     minItems: 3,
-                    maxItems: 5
+                    maxItems: 4
                   }
                 },
-                required: ["leadership_style", "top_strengths", "development_areas", "recommendations"],
+                required: ["key_strengths", "development_areas", "recommendations"],
                 additionalProperties: false
               }
             }
@@ -488,67 +517,80 @@ Provide insights and recommendations.`;
       );
 
       const toolCall = insightsResult.choices[0].message.tool_calls[0];
-      const insightData = JSON.parse(toolCall.function.arguments);
-      insights = { ...insights, ...insightData };
-      recommendations = insightData.recommendations;
+      const insights = JSON.parse(toolCall.function.arguments);
+      
+      keyStrengths = insights.key_strengths;
+      developmentAreas = insights.development_areas;
+      recommendations = insights.recommendations;
     } catch (error) {
       console.error("Insights generation failed:", error);
     }
 
-    // 8. SAVE RESULTS
+    // 10. SAVE RESULTS TO DATABASE
+    const resultData = {
+      assessment_id: assessmentId,
+      personal_ownership_score: personalOwnershipScore,
+      impact_readiness_score: impactReadinessScore,
+      will_score: willScore,
+      skill_score: skillScore,
+      quadrant,
+      recommended_role: recommendedRole,
+      role_explanation: roleExplanation,
+      vertical_matches: verticalMatches,
+      key_strengths: keyStrengths,
+      development_areas: developmentAreas,
+      recommendations,
+      scoring_breakdown: {
+        personal_ownership: personalOwnershipBreakdown,
+        impact_readiness: impactReadinessBreakdown,
+        will: willBreakdown,
+        skill: skillBreakdown,
+      },
+      leadership_style: leadershipStyle,
+    };
+
     const { error: insertError } = await supabase
       .from("assessment_results")
-      .insert({
-        assessment_id: assessmentId,
-        will_score: willScore,
-        skill_score: skillScore,
-        quadrant: quadrant,
-        recommended_role: recommendedRole,
-        role_explanation: roleExplanation,
-        vertical_matches: verticalMatches,
-        leadership_style: insights.leadership_style,
-        recommendations: recommendations,
-        key_insights: insights,
-        reasoning: `WILL: ${JSON.stringify(willBreakdown)}\n\nSKILL: ${skillBreakdown.reasoning}`,
-        scoring_breakdown: {
-          will: willBreakdown,
-          skill: skillBreakdown
-        }
-      });
+      .insert(resultData);
 
     if (insertError) {
-      console.error("Failed to insert results:", insertError);
+      console.error("Error inserting results:", insertError);
       throw insertError;
     }
 
-    console.log(`Analysis complete for assessment ${assessmentId}`);
+    console.log("Analysis complete:", {
+      personalOwnershipScore,
+      impactReadinessScore,
+      willScore,
+      skillScore,
+      recommendedRole,
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
-        assessment_id: assessmentId,
-        results: {
-          will_score: willScore,
-          skill_score: skillScore,
-          quadrant: quadrant,
-          recommended_role: recommendedRole
-        }
+        scores: {
+          personal_ownership: personalOwnershipScore,
+          impact_readiness: impactReadinessScore,
+          will: willScore,
+          skill: skillScore,
+        },
+        recommended_role: recommendedRole,
+        quadrant,
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Error analyzing assessment:", error);
+    console.error("Error in analyze-assessment:", error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : "Unknown error",
+        success: false 
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
   }
