@@ -40,7 +40,7 @@ Each response should:
 4. Connect their concern to broader community impact
 
 Make each example DIFFERENT - cover different topics like education, sanitation, youth engagement, infrastructure, or environment.
-Each response should be 150-250 words and feel personal and authentic.`;
+Each response should be approximately 400 characters (about 50% of the 800 character limit) and feel personal and authentic.`;
 
       userPrompt = `Question: "${questionTitle}"
 Scenario: Describe a problem in Erode/your community that IRRITATES you so much you can't ignore it. What specific moment made you feel 'I have to do something about this'?
@@ -60,7 +60,7 @@ Each response should:
 4. Explain the expected change/impact
 
 Make each example DIFFERENT - different approaches, strategies, and community problems.
-Each response should be 200-350 words and feel realistic and implementable.`;
+Each response should be approximately 500 characters (about 50% of the 1000 character limit) and feel realistic and implementable.`;
 
         userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
@@ -79,7 +79,7 @@ Each response should:
 4. Demonstrate self-awareness about their capacity
 
 Make each example DIFFERENT - show different commitment levels (immediate yes, conditional yes, apologetic no).
-Each response should be 80-150 words and feel genuine.`;
+Each response should be approximately 250 characters (about 50% of the 500 character limit) and feel genuine.`;
 
         userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
@@ -99,7 +99,7 @@ Each response should:
 4. Reflect on what they learned
 
 Make each example DIFFERENT - academic, volunteer, personal, professional achievements.
-Each response should be 120-200 words and showcase real impact.`;
+Each response should be approximately 200 characters (about 50% of the 400 character limit) and showcase real impact.`;
 
         userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
