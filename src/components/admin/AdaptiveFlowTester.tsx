@@ -201,7 +201,7 @@ export const AdaptiveFlowTester = () => {
           questionNumber: 3,
           previousResponses: {
             q1_part_a: q1Problem,
-            q2_response: "Safe Streets for Students initiative"
+            q2_initiative: "Safe Streets for Students initiative"
           }
         }
       });
@@ -239,7 +239,7 @@ export const AdaptiveFlowTester = () => {
           questionNumber: 4,
           previousResponses: {
             q1_part_a: q1Problem,
-            q2_response: "Safe Streets for Students initiative"
+            q2_initiative: "Safe Streets for Students initiative"
           }
         }
       });
@@ -276,7 +276,7 @@ export const AdaptiveFlowTester = () => {
         body: {
           questionNumber: 5,
           previousResponses: {
-            q2_response: "Safe Streets for Students initiative"
+            q2_initiative: "Safe Streets for Students initiative"
           }
         }
       });
