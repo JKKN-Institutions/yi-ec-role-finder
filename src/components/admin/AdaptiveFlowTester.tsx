@@ -94,13 +94,13 @@ export const AdaptiveFlowTester = () => {
         body: { problemDescription: q1Problem }
       });
 
-      if (verticalsError || !verticalsData?.suggestions) {
+      if (verticalsError || !verticalsData?.suggestedVerticals) {
         updateStep(2, 'error', `AI vertical suggestion failed: ${verticalsError?.message || 'No suggestions returned'}`);
         return;
       }
 
       // Update Q1 with vertical selections
-      const selectedVerticals = verticalsData.suggestions.slice(0, 3).map((s: any) => s.vertical_id);
+      const selectedVerticals = verticalsData.suggestedVerticals.slice(0, 3);
       
       await supabase
         .from('assessment_responses')
@@ -115,7 +115,7 @@ export const AdaptiveFlowTester = () => {
         .eq('assessment_id', assessment.id)
         .eq('question_number', 1);
 
-      updateStep(2, 'success', `Suggested ${verticalsData.suggestions.length} verticals in ${Date.now() - step2Start}ms`, Date.now() - step2Start);
+      updateStep(2, 'success', `Suggested ${verticalsData.suggestedVerticals.length} verticals in ${Date.now() - step2Start}ms`, Date.now() - step2Start);
 
       // Step 3: Test Q2 adaptation
       updateStep(3, 'running');
