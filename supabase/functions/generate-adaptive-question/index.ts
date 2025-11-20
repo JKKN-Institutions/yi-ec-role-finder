@@ -451,7 +451,7 @@ Respond with ONLY a comma-separated list of 2-4 domains, nothing else.`
   const problemSummary = problemSummaryData.choices[0].message.content.trim();
 
   // Step 3: Generate adapted Q4 scenario
-  const defaultQ4 = "Describe your most significant achievement in the last 2 years - something you're genuinely proud of (can be academic, personal, volunteer, or professional). What did you do, what obstacles did you face, and what was the outcome?";
+  const defaultQ4 = "What's the most significant achievement you want to accomplish in Yi Erode 2026? Describe a specific, ambitious goal you want to reach this year - something that would make you genuinely proud. What impact do you want to create, what challenges do you expect to face, and what success would look like?";
 
   const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -474,18 +474,19 @@ Context from previous questions:
 - Problem they care about: ${problemSummary}
 - Relevant skill domains: ${relevantDomains}
 - Selected verticals: ${verticals.join(', ')}
+- Initiative they designed: ${initiativeText.substring(0, 200)}...
 
 Generate an adapted Q4 that:
-1. Acknowledges their passion for ${problemSummary}
-2. References their initiative design showing interest in ${relevantDomains}
-3. Asks for a significant achievement that demonstrates relevant execution skills
-4. Specifically suggests looking for achievements in: ${relevantDomains}
-5. Maintains the core criteria: what they did, obstacles faced, outcomes achieved
-6. Still allows achievements from any domain (academic, personal, volunteer, professional)
-7. Total length should be 150-180 words
+1. Acknowledges their passion for ${problemSummary} and their ${relevantDomains} initiative design
+2. Asks what specific, ambitious GOAL they want to accomplish in Yi Erode 2026
+3. Should feel connected to their Q1 problem and Q2 initiative but allows them to set ANY goal within Yi Erode
+4. Encourages them to think beyond their immediate Q2 initiative - what's their bigger 2026 aspiration?
+5. Asks them to define: what impact they want, what challenges they anticipate, what success looks like
+6. Maintains aspirational yet realistic tone - ambitious but achievable within 2026
+7. Total length should be 140-170 words
 
 Example structure:
-"You've shown passion for ${problemSummary} and designed an initiative involving ${relevantDomains}. Now share a past achievement that demonstrates you can actually execute complex plans - ideally related to ${relevantDomains.split(',')[0]}, or any area where you've delivered tangible results. What obstacles did you overcome?"
+"You've shown passion for ${problemSummary} and designed a ${relevantDomains} initiative. Now think bigger - what's the most significant achievement you want to accomplish in Yi Erode 2026? This could build on your initiative or be something entirely different within Yi Erode. What ambitious goal would make you genuinely proud? Describe the impact you want to create, the challenges you expect to face, and what success would look like by the end of 2026."
 
 Respond with ONLY the adapted question text, nothing else.`
         }

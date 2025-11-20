@@ -162,15 +162,18 @@ Based on their interests:
 - Problem: "${problemContext.substring(0, 150)}..."
 - Initiative: "${initiativeContext.substring(0, 150)}..."
 
-Generate 3 achievement story examples in domains RELEVANT to their interests.
-Each response should:
-1. Describe specific actions in relevant domains (education, environment, community organizing, etc.)
-2. Share obstacles overcome with concrete details
-3. Provide measurable outcomes/impact
-4. Reflect on lessons learned
+The candidate is being asked about their 2026 aspirations for Yi Erode.
 
-Make each example cover different achievement types relevant to THEIR interests.
-Each response should be approximately 200 characters (50% of limit).`;
+Generate 3 FUTURE-ORIENTED goal examples in domains RELEVANT to their interests.
+Each response should:
+1. Describe a specific, ambitious goal they could pursue in Yi Erode 2026
+2. Connect naturally to their problem/initiative interests but show bigger thinking
+3. Explain the impact they want to create and why it matters
+4. Anticipate realistic challenges they might face (resources, buy-in, scale, etc.)
+5. Define what success would look like by end of 2026 with measurable criteria
+
+Make each example cover DIFFERENT goal types (e.g., scaling their initiative, starting something new, building capacity, creating systemic change) relevant to THEIR context.
+Each response should be approximately 200 characters (50% of limit) and feel aspirational yet achievable.`;
 
           userPrompt = `Their Context:
 Problem Interest: "${problemContext.substring(0, 100)}..."
@@ -180,26 +183,28 @@ Adapted Scenario: ${adaptedQuestionText || scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Generate 3 achievement stories in domains relevant to THEIR interests.`;
+Generate 3 aspirational 2026 goal examples specifically connected to THEIR interests in Yi Erode, not generic goals.`;
         } else {
           systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-Generate 3 complete achievement story examples that candidates can choose from.
-Each response should:
-1. Describe what they actually did (actions taken)
-1. Share a specific achievement with concrete details
-2. Explain specific obstacles they overcame
-3. Share measurable outcomes or impact
-4. Reflect on what they learned
 
-Make each example DIFFERENT - academic, volunteer, personal, professional achievements.
-Each response should be approximately 200 characters (about 50% of the 400 character limit) and showcase real impact.`;
+The candidate is being asked about their aspirations for Yi Erode 2026.
+
+Generate 3 complete future goal examples that candidates can draw inspiration from.
+Each response should:
+1. Describe a specific, ambitious goal for Yi Erode 2026
+2. Explain the impact they want to create
+3. Anticipate realistic challenges (resources, buy-in, scale, sustainability)
+4. Define what success looks like with measurable criteria
+
+Make each example DIFFERENT - capacity building, community impact, innovation, systems change, etc.
+Each response should be approximately 200 characters (about 50% of the 400 character limit) and feel aspirational yet grounded.`;
 
           userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Generate 3 complete, different achievement stories covering different types of accomplishments.`;
+Generate 3 complete, different future goal examples for Yi Erode 2026 covering different types of aspirations.`;
         }
       }
 

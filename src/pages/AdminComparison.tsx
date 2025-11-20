@@ -480,7 +480,7 @@ const AdminComparison = () => {
                                               const defaultQuestions: Record<number, string> = {
                                                 2: "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described in Q1. Design your initiative...",
                                                 3: "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event...'",
-                                                4: "Describe your most significant achievement in the last 2 years - something you're genuinely proud of...",
+                                                4: "What's the most significant achievement you want to accomplish in Yi Erode 2026? Describe a specific, ambitious goal...",
                                                 5: "Your team misses a critical deadline. What's your first instinct?"
                                               };
                                               return defaultQuestions[qNum] || "Default question";
