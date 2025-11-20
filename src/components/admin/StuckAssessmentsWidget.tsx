@@ -11,6 +11,7 @@ interface StuckAssessment {
   user_name: string;
   user_email: string;
   created_at: string;
+  issue_type: 'stuck_in_progress' | 'completed_not_analyzed';
 }
 
 export function StuckAssessmentsWidget() {
@@ -21,8 +22,10 @@ export function StuckAssessmentsWidget() {
   const loadStuckAssessments = async () => {
     setIsLoading(true);
     try {
-      // Find assessments that are stuck
-      const { data: stuck } = await supabase
+      const allStuck: StuckAssessment[] = [];
+
+      // 1. Find assessments stuck in progress
+      const { data: stuckInProgress } = await supabase
         .from("assessments")
         .select("id, user_name, user_email, created_at")
         .eq("status", "in_progress")
@@ -30,18 +33,44 @@ export function StuckAssessmentsWidget() {
         .lt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
         .order("created_at", { ascending: false });
 
-      if (stuck) {
+      if (stuckInProgress) {
         // Filter to only those with results (meaning they're truly stuck)
-        const assessmentIds = stuck.map(a => a.id);
+        const assessmentIds = stuckInProgress.map(a => a.id);
         const { data: results } = await supabase
           .from("assessment_results")
           .select("assessment_id")
           .in("assessment_id", assessmentIds);
 
         const completedIds = new Set(results?.map(r => r.assessment_id) || []);
-        const reallyStuck = stuck.filter(a => completedIds.has(a.id));
-        setStuckAssessments(reallyStuck);
+        const reallyStuck = stuckInProgress
+          .filter(a => completedIds.has(a.id))
+          .map(a => ({ ...a, issue_type: 'stuck_in_progress' as const }));
+        allStuck.push(...reallyStuck);
       }
+
+      // 2. Find completed assessments without results (analysis never ran)
+      const { data: completedNoResults } = await supabase
+        .from("assessments")
+        .select("id, user_name, user_email, created_at")
+        .eq("status", "completed")
+        .lt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .order("created_at", { ascending: false });
+
+      if (completedNoResults) {
+        const assessmentIds = completedNoResults.map(a => a.id);
+        const { data: results } = await supabase
+          .from("assessment_results")
+          .select("assessment_id")
+          .in("assessment_id", assessmentIds);
+
+        const hasResultsIds = new Set(results?.map(r => r.assessment_id) || []);
+        const missingResults = completedNoResults
+          .filter(a => !hasResultsIds.has(a.id))
+          .map(a => ({ ...a, issue_type: 'completed_not_analyzed' as const }));
+        allStuck.push(...missingResults);
+      }
+
+      setStuckAssessments(allStuck);
     } catch (error) {
       console.error("Error loading stuck assessments:", error);
     } finally {
@@ -131,12 +160,12 @@ export function StuckAssessmentsWidget() {
 
       {stuckAssessments.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No stuck assessments detected. All submissions are properly marked as completed.
+          No stuck assessments detected. All submissions are properly marked as completed and analyzed.
         </p>
       ) : (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground mb-3">
-            These assessments are completed but stuck in "in progress" status:
+            Found {stuckAssessments.length} assessment(s) with issues:
           </p>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {stuckAssessments.map((assessment) => (
@@ -144,12 +173,17 @@ export function StuckAssessmentsWidget() {
                 key={assessment.id}
                 className="flex items-center justify-between p-2 bg-destructive/10 rounded-md text-sm"
               >
-                <div>
+                <div className="flex-1">
                   <span className="font-medium">{assessment.user_name}</span>
                   <span className="text-muted-foreground ml-2 text-xs">
                     {assessment.user_email}
                   </span>
                 </div>
+                <Badge variant="outline" className="text-xs">
+                  {assessment.issue_type === 'stuck_in_progress' 
+                    ? 'Stuck in Progress' 
+                    : 'Not Analyzed'}
+                </Badge>
               </div>
             ))}
           </div>

@@ -3,6 +3,9 @@ project_id = "bezmwilzorbwmnkkujyc"
 [functions.analyze-assessment]
 verify_jwt = false
 
+[functions.heal-stuck-assessments]
+verify_jwt = false
+
 [functions.manage-user-roles]
 verify_jwt = false
 
