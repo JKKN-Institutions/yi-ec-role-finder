@@ -12,7 +12,16 @@ serve(async (req) => {
   }
 
   try {
-    const { questionNumber, questionTitle, questionType, currentText, scenario } = await req.json();
+    const { 
+      questionNumber, 
+      questionTitle, 
+      questionType, 
+      currentText, 
+      scenario,
+      adaptedQuestionText,
+      adaptationContext,
+      previousResponses 
+    } = await req.json();
 
     if (!questionNumber || !questionTitle || !questionType) {
       return new Response(
@@ -51,7 +60,35 @@ Generate 3 complete, different example responses covering different community pr
 
     } else if (questionType === 'long-text') {
       if (questionNumber === 2) {
-        systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
+        const problemContext = previousResponses?.q1_part_a || 'a community problem';
+        const verticals = previousResponses?.q1_verticals || [];
+        const hasContext = previousResponses?.q1_part_a && verticals.length > 0;
+        
+        if (hasContext) {
+          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
+The candidate described this problem: "${problemContext.substring(0, 200)}..."
+They selected these focus areas: ${verticals.join(', ')}
+
+Generate 3 complete initiative design examples specifically addressing THEIR problem.
+Each response should:
+1. Directly address the problem they described
+2. Align with their selected verticals
+3. Include clear, measurable objectives for reaching 10,000+ people
+4. Plan concrete activities within ₹50,000 and 6 months
+5. Explain expected change/impact
+
+Make each example DIFFERENT approaches to solving THEIR specific problem.
+Each response should be approximately 500 characters (50% of limit) and feel personally relevant.`;
+
+          userPrompt = `Their Problem: "${problemContext}"
+Selected Verticals: ${verticals.join(', ')}
+Adapted Scenario: ${adaptedQuestionText || scenario}
+
+Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
+
+Generate 3 initiative examples specifically for THEIR problem, not generic examples.`;
+        } else {
+          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
 Generate 3 complete, practical initiative design examples that candidates can choose from.
 Each response should:
 1. Define clear, measurable objectives
@@ -62,15 +99,40 @@ Each response should:
 Make each example DIFFERENT - different approaches, strategies, and community problems.
 Each response should be approximately 500 characters (about 50% of the 1000 character limit) and feel realistic and implementable.`;
 
-        userPrompt = `Question: "${questionTitle}"
+          userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
 Generate 3 complete, different initiative design examples with different approaches to reaching 10,000+ people.`;
+        }
 
       } else if (questionNumber === 3) {
-        systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
+        const initiativeContext = previousResponses?.q2_initiative || 'their initiative';
+        const hasContext = previousResponses?.q2_initiative;
+        
+        if (hasContext) {
+          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
+The candidate designed this initiative: "${initiativeContext.substring(0, 200)}..."
+
+Generate 3 honest response examples to a Saturday deadline crisis for THEIR initiative.
+Each response should:
+1. Reference their specific initiative context
+2. Show different commitment levels (immediate yes, conditional yes, apologetic no)
+3. Explain reasoning and constraints honestly
+4. Demonstrate responsibility and self-awareness
+
+Make each example show different availability levels while staying authentic.
+Each response should be approximately 250 characters (50% of limit).`;
+
+          userPrompt = `Their Initiative: "${initiativeContext}"
+Crisis Scenario: ${adaptedQuestionText || scenario}
+
+Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
+
+Generate 3 responses showing different commitment levels for THEIR specific initiative.`;
+        } else {
+          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
 Generate 3 complete, honest response examples that candidates can choose from.
 Each response should:
 1. Give an honest, authentic response showing different levels of availability
@@ -81,15 +143,46 @@ Each response should:
 Make each example DIFFERENT - show different commitment levels (immediate yes, conditional yes, apologetic no).
 Each response should be approximately 250 characters (about 50% of the 500 character limit) and feel genuine.`;
 
-        userPrompt = `Question: "${questionTitle}"
+          userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
 Generate 3 complete, different honest responses showing various commitment levels and boundary-setting approaches.`;
+        }
 
       } else if (questionNumber === 4) {
-        systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
+        const problemContext = previousResponses?.q1_part_a || 'community issues';
+        const initiativeContext = previousResponses?.q2_initiative || 'community work';
+        const hasContext = previousResponses?.q1_part_a || previousResponses?.q2_initiative;
+        
+        if (hasContext) {
+          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
+Based on their interests:
+- Problem: "${problemContext.substring(0, 150)}..."
+- Initiative: "${initiativeContext.substring(0, 150)}..."
+
+Generate 3 achievement story examples in domains RELEVANT to their interests.
+Each response should:
+1. Describe specific actions in relevant domains (education, environment, community organizing, etc.)
+2. Share obstacles overcome with concrete details
+3. Provide measurable outcomes/impact
+4. Reflect on lessons learned
+
+Make each example cover different achievement types relevant to THEIR interests.
+Each response should be approximately 200 characters (50% of limit).`;
+
+          userPrompt = `Their Context:
+Problem Interest: "${problemContext.substring(0, 100)}..."
+Initiative Type: "${initiativeContext.substring(0, 100)}..."
+
+Adapted Scenario: ${adaptedQuestionText || scenario}
+
+Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
+
+Generate 3 achievement stories in domains relevant to THEIR interests.`;
+        } else {
+          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
 Generate 3 complete achievement story examples that candidates can choose from.
 Each response should:
 1. Describe what they actually did (actions taken)
@@ -101,24 +194,44 @@ Each response should:
 Make each example DIFFERENT - academic, volunteer, personal, professional achievements.
 Each response should be approximately 200 characters (about 50% of the 400 character limit) and showcase real impact.`;
 
-        userPrompt = `Question: "${questionTitle}"
+          userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
 Generate 3 complete, different achievement stories covering different types of accomplishments.`;
+        }
       }
 
     } else if (questionType === 'radio') {
-      systemPrompt = `You are a helpful assistant for Yi Erode leadership assessment.
+      const initiativeContext = previousResponses?.q2_initiative || 'their initiative';
+      const hasContext = previousResponses?.q2_initiative && questionNumber === 5;
+      
+      if (hasContext) {
+        systemPrompt = `You are a helpful assistant for Yi Erode leadership assessment.
+The candidate designed this initiative: "${initiativeContext.substring(0, 200)}..."
+
+Explain each leadership style option in the context of THEIR specific initiative.
+Show how each style would apply to their particular project and team dynamics.
+Provide 3-4 sentences per style.`;
+
+        userPrompt = `Their Initiative: "${initiativeContext}"
+Scenario: ${adaptedQuestionText || scenario}
+
+Current selection: ${currentText || 'None selected yet'}
+
+Explain each leadership style specifically in the context of THEIR initiative.`;
+      } else {
+        systemPrompt = `You are a helpful assistant for Yi Erode leadership assessment.
 Provide a brief explanation of what each leadership style option means and when it's most effective.`;
 
-      userPrompt = `Question: "${questionTitle}"
+        userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current selection: ${currentText || 'None selected yet'}
 
 Provide a brief explanation (3-4 sentences) helping them understand what each leadership style option means.`;
+      }
     }
 
     // Call Lovable AI with tool calling for structured output
