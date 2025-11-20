@@ -48,19 +48,19 @@ serve(async (req) => {
     let userPrompt = '';
 
     if (questionType === 'irritation-vertical') {
-      systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment. 
-Generate 3 complete, authentic example responses that candidates can choose from.
-Each response should:
-1. Express genuine emotional impact of a community problem
-2. Share a specific moment that drove their concern
-3. Explain why this problem matters personally
-4. Connect their concern to broader community impact
+      systemPrompt = `You help people write answers for Yi Erode assessment.
+Write 3 simple example answers that candidates can pick from.
+Each answer should:
+1. Show how a community problem makes them feel
+2. Tell about one moment that made them care
+3. Say why this problem matters to them
+4. Explain why others should care too
 
-Make each example DIFFERENT - cover different topics like education, sanitation, youth engagement, infrastructure, or environment.
-Each response should be approximately 400 characters (about 50% of the 800 character limit) and feel personal and authentic.`;
+Make each example DIFFERENT - talk about different topics like schools, garbage, youth programs, roads, or environment.
+Each answer should be about 400 letters (50% of the 800 limit) and sound real.`;
 
       userPrompt = `Question: "${questionTitle}"
-Scenario: Describe a problem in Erode/your community that IRRITATES you so much you can't ignore it. What specific moment made you feel 'I have to do something about this'?
+Scenario: What problem in Erode bothers you the most? Tell us about the moment when you thought 'I need to fix this'.
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
@@ -82,25 +82,25 @@ Generate 3 complete, different example responses covering different community pr
         });
         
         if (hasContext) {
-          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
+          systemPrompt = `You help people write answers for Yi Erode assessment.
 
-The candidate wrote about this specific problem:
+The person wrote about this problem:
 "${problemContext.substring(0, 300)}"
 
-They selected these focus verticals: ${verticals.join(', ')}
+They picked these areas: ${verticals.join(', ')}
 
-Generate 3 initiative design examples that DIRECTLY respond to THEIR EXACT PROBLEM above.
+Write 3 examples that DIRECTLY solve THEIR problem.
 
-CRITICAL: Each response MUST:
-1. Start by referencing their specific problem in the first sentence (e.g., "To address [their problem]...")
-2. Propose a concrete initiative that solves THEIR problem (not a generic one)
-3. Align with their selected verticals: ${verticals.join(', ')}
-4. Include measurable objectives for reaching 10,000+ people
-5. Plan activities within ₹50,000 budget and 6-month timeline
-6. Explain the expected change/impact specific to THEIR problem context
+IMPORTANT: Each answer MUST:
+1. Start by talking about their exact problem (like "To fix [their problem]...")
+2. Give a real plan that solves THEIR problem (not something else)
+3. Match their picked areas: ${verticals.join(', ')}
+4. Include clear ways to reach 10,000+ people
+5. Say who will help (partners, groups)
+6. Explain what will change
 
-Make each example take a DIFFERENT approach to solving THE SAME PROBLEM they described.
-Each response should be approximately 500 characters and feel personally crafted for THEIR situation.`;
+Make each example take a DIFFERENT way to solve THE SAME PROBLEM.
+Each answer should be about 500 letters and feel like it was made just for THEIR situation.`;
 
           userPrompt = `CANDIDATE'S SPECIFIC PROBLEM (from Q1):
 "${problemContext.substring(0, 400)}"
@@ -114,16 +114,20 @@ Current draft (${currentText?.length || 0} chars): ${currentText || 'Nothing wri
 Generate 3 initiative designs that solve THIS SPECIFIC PROBLEM (not generic issues).
 Each suggestion must reference their exact problem in the opening sentence.`;
         } else {
-          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-Generate 3 complete, practical initiative design examples that candidates can choose from.
-Each response should:
-1. Define clear, measurable objectives
-2. Identify specific target audiences and how to reach them
-3. Plan concrete activities and partnerships
-4. Explain the expected change/impact
+          systemPrompt = `You help people write answers for Yi Erode assessment.
+Write 3 complete examples for a 6-month, ₹50,000 plan.
 
-Make each example DIFFERENT - different approaches, strategies, and community problems.
-Each response should be approximately 500 characters (about 50% of the 1000 character limit) and feel realistic and implementable.`;
+Q1 answers not available, using basic Q2 prompt.
+
+Each answer should:
+1. Say clear goals you can measure
+2. Say who you want to reach and how to reach 10,000+ people
+3. List clear actions and timeline
+4. Explain what will change
+5. Say who will help and what you need
+
+Make each example DIFFERENT - talk about different problems (schools, garbage, youth programs, roads).
+Each answer should be about 500 letters and feel real and doable.`;
 
           userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
