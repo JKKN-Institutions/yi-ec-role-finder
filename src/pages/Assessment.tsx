@@ -574,6 +574,9 @@ const Assessment = () => {
     try {
       await saveResponse();
 
+      // STEP 2: Optimistic client-side update (for immediate UI feedback)
+      // Note: This may fail due to network/browser issues, so we have server-side
+      // backup in analyze-assessment edge function and ThankYou page fallback
       console.log('[Assessment Submit] Updating status to completed for assessment:', id);
       
       const { data: updateData, error: updateError } = await supabase

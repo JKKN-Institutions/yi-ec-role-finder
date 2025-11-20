@@ -23,6 +23,7 @@ import { TestAssessmentSeeder } from "./TestAssessmentSeeder";
 import { TestDataCleanup } from "./TestDataCleanup";
 import { AnalyticsWidget } from "./AnalyticsWidget";
 import { CreateDemoAssessment } from "./CreateDemoAssessment";
+import { StuckAssessmentsWidget } from "./StuckAssessmentsWidget";
 
 interface Stats {
   totalAssessments: number;
@@ -467,6 +468,9 @@ export function AdminOverview() {
         <ActiveAdminsWidget />
         <AnalyticsWidget />
       </div>
+
+      {/* Assessment Health Monitor */}
+      <StuckAssessmentsWidget />
 
       {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2">

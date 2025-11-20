@@ -558,6 +558,24 @@ Provide:
       throw insertError;
     }
 
+    // STEP 1: Server-side status update (most reliable)
+    // Update assessment status to completed after successful analysis
+    console.log(`Updating assessment ${assessmentId} status to completed`);
+    const { error: statusError } = await supabase
+      .from("assessments")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", assessmentId);
+
+    if (statusError) {
+      console.error("Failed to update assessment status:", statusError);
+      // Don't throw - analysis succeeded, status update is secondary
+    } else {
+      console.log("Assessment status updated to completed");
+    }
+
     console.log("Analysis complete:", {
       personalOwnershipScore,
       impactReadinessScore,
