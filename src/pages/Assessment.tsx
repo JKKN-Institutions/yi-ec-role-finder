@@ -140,6 +140,10 @@ const Assessment = () => {
     };
   }>({});
   const [isAdaptingQuestion, setIsAdaptingQuestion] = useState(false);
+  
+  // Analytics tracking state
+  const [questionStartTime, setQuestionStartTime] = useState<{ [key: number]: number }>({});
+  const [aiHelpUsedForQuestion, setAiHelpUsedForQuestion] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     const loadAssessment = async () => {
@@ -221,6 +225,14 @@ const Assessment = () => {
       setHasAnalyzedQ1(false);
       setSuggestedVerticals([]);
     }
+    
+    // Track question start time for analytics
+    if (!questionStartTime[currentQuestion]) {
+      setQuestionStartTime(prev => ({
+        ...prev,
+        [currentQuestion]: Date.now()
+      }));
+    }
   }, [currentQuestion, responses]);
 
   const validateCurrentQuestion = (): boolean => {
@@ -269,6 +281,17 @@ const Assessment = () => {
       // Get adapted question data if available
       const adaptedData = adaptedQuestions[currentQuestion];
       
+      // Calculate response metrics
+      const responseText = question.type === 'irritation-vertical' 
+        ? (currentResponse.partA as string || '')
+        : question.type === 'long-text'
+        ? (currentResponse.response as string || '')
+        : (currentResponse.leadershipStyle as string || '');
+      
+      const responseLength = responseText.length;
+      const startTime = questionStartTime[currentQuestion];
+      const timeToComplete = startTime ? Math.floor((Date.now() - startTime) / 1000) : null;
+      
       await supabase.from("assessment_responses").upsert({
         assessment_id: id,
         question_number: currentQuestion,
@@ -281,9 +304,24 @@ const Assessment = () => {
           adaptedAt: new Date().toISOString()
         } : null,
       });
+      
+      // Track analytics for this question
+      await supabase.from("adaptation_analytics").upsert({
+        assessment_id: id,
+        question_number: currentQuestion,
+        was_adapted: !!adaptedData,
+        ai_help_used: aiHelpUsedForQuestion[currentQuestion] || false,
+        response_completed: true,
+        response_length: responseLength,
+        time_to_complete_seconds: timeToComplete,
+        adaptation_context: adaptedData ? {
+          contextSummary: adaptedData.contextSummary,
+        } : null,
+      });
 
       setResponses({ ...responses, [currentQuestion]: currentResponse });
     } catch (error) {
+      console.error('Failed to save response:', error);
       toast.error("Failed to save response");
     }
   };
