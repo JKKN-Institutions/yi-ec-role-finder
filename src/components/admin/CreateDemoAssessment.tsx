@@ -77,13 +77,13 @@ export const CreateDemoAssessment = () => {
         {
           assessment_id: assessment.id,
           question_number: 4,
-          question_text: "Your Most Significant Achievement",
+          question_text: "Your 2026 Yi Erode Goal",
           response_data: {
-            response: "Last year, I organized a 'Green Campus Initiative' at my college where we achieved 80% plastic reduction in 4 months. The biggest obstacle was convincing 200+ students and 50 faculty to change their habits - many thought it was impractical. I started by placing 30 stainless steel water stations and banning plastic bottles in the canteen, which created immediate pushback. To overcome this, I formed a 15-member student committee, ran a viral social media campaign showing our daily plastic waste (it was shocking!), and got the principal's public support. We faced vendor resistance when trying to eliminate plastic packaging, so we helped them find affordable biodegradable alternatives. The outcome: we eliminated 50,000+ plastic bottles, saved the college ₹80,000 annually, and our model was adopted by 3 other institutions in Tamil Nadu. Most importantly, I learned that systemic change requires persistence, stakeholder buy-in, and making the 'right choice' also the 'easy choice.'"
+            response: "In Yi Erode 2026, I want to establish a 'Zero Waste Erode Districts Network' that brings my community waste initiative to scale across 5 districts, impacting 500,000+ residents. My goal is to create a replicable model where each district achieves 60% waste segregation at source by December 2026. The impact I envision: 300 tons of waste diverted from landfills monthly, 50 youth-led ward committees trained and active, and a policy framework adopted by Erode Municipal Corporation. I anticipate major challenges - convincing 5 different district administrations will require persistent advocacy, coordinating volunteers across distances needs strong systems, and securing ₹5 lakhs funding will test my partnership-building skills. Success looks like: documented waste reduction data, active ward committees still running independently, and our model being presented at the Tamil Nadu State Climate Summit in November 2026 as a case study for youth-led environmental action."
           },
-          adapted_question_text: "You've shown passion for waste management issues and designed an initiative involving community organizing, environmental action, and youth mobilization. Now share a past achievement that demonstrates you can actually execute complex plans - ideally related to community organizing, environmental action, or mobilizing others. What obstacles did you overcome?",
+          adapted_question_text: "You've shown passion for waste management issues and designed a community-driven waste segregation initiative. Now think bigger - what's the most significant achievement you want to accomplish in Yi Erode 2026? This could build on your initiative or be something entirely different within Yi Erode. What ambitious goal would make you genuinely proud? Describe the impact you want to create, the challenges you expect to face, and what success would look like by the end of 2026.",
           adaptation_context: {
-            contextSummary: "community organizing, environmental action, youth mobilization",
+            contextSummary: "scaling waste management initiative across districts",
             wasAdapted: true,
             adaptedAt: new Date().toISOString()
           }
