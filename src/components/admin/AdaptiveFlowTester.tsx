@@ -131,7 +131,7 @@ export const AdaptiveFlowTester = () => {
         }
       });
 
-      if (q2Error || !q2Data?.adaptedQuestion) {
+      if (q2Error || !q2Data?.adaptedScenario) {
         updateStep(3, 'error', `Q2 adaptation failed: ${q2Error?.message || 'No adapted question'}`);
         return;
       }
@@ -147,8 +147,8 @@ export const AdaptiveFlowTester = () => {
           questionNumber: 2,
           questionTitle: 'Initiative Design',
           questionType: 'long-text',
-          scenario: q2Data.adaptedQuestion,
-          adaptedQuestionText: q2Data.adaptedQuestion,
+          scenario: q2Data.adaptedScenario,
+          adaptedQuestionText: q2Data.adaptedScenario,
           previousResponses: {
             q1_part_a: q1Problem,
             q1_verticals: selectedVerticals
@@ -184,7 +184,7 @@ export const AdaptiveFlowTester = () => {
           response_data: {
             response: "To address the street dog attacks near Gandhi Road school, I'll launch 'Safe Streets for Students' - a 6-month initiative partnering with the municipality, school, and animal welfare groups. We'll set up feeding stations away from school routes, conduct humane sterilization camps for 200+ dogs, install 20 warning signboards, train 50 student 'safety ambassadors', and create a 24/7 emergency response WhatsApp group. Budget: ₹30,000 sterilization, ₹15,000 awareness materials, ₹5,000 feeding stations. This will reach 10,000+ residents and eliminate attacks within 4 months."
           },
-          adapted_question_text: q2Data.adaptedQuestion,
+          adapted_question_text: q2Data.adaptedScenario,
           adaptation_context: {
             contextSummary: q2Data.contextSummary,
             wasAdapted: true
@@ -205,7 +205,7 @@ export const AdaptiveFlowTester = () => {
         }
       });
 
-      if (q3Error || !q3Data?.adaptedQuestion) {
+      if (q3Error || !q3Data?.adaptedScenario) {
         updateStep(5, 'error', `Q3 adaptation failed: ${q3Error?.message}`);
         return;
       }
@@ -222,7 +222,7 @@ export const AdaptiveFlowTester = () => {
           response_data: {
             response: "Yes, I'll come. This campaign matters - those kids' safety can't wait. I'll tell my family I need 3-4 hours for urgent community work. The event tomorrow is critical for getting municipality support."
           },
-          adapted_question_text: q3Data.adaptedQuestion,
+          adapted_question_text: q3Data.adaptedScenario,
           adaptation_context: {
             contextSummary: q3Data.contextSummary,
             wasAdapted: true
@@ -243,7 +243,7 @@ export const AdaptiveFlowTester = () => {
         }
       });
 
-      if (q4Error || !q4Data?.adaptedQuestion) {
+      if (q4Error || !q4Data?.adaptedScenario) {
         updateStep(6, 'error', `Q4 adaptation failed: ${q4Error?.message}`);
         return;
       }
@@ -260,7 +260,7 @@ export const AdaptiveFlowTester = () => {
           response_data: {
             response: "In 2026, I want to make Erode the first 'Stray-Safe City' in Tamil Nadu - zero dog attacks reported in 2026. I'll scale Safe Streets model to all 60 wards, train 500 youth volunteers, partner with 10 NGOs, and secure ₹50 lakhs municipal funding. Success means 5,000+ dogs sterilized, 100,000+ residents educated, and our model adopted by 5 other Tamil Nadu cities. Challenges: coordinating across 60 wards, maintaining volunteer motivation, proving long-term impact data to convince officials."
           },
-          adapted_question_text: q4Data.adaptedQuestion,
+          adapted_question_text: q4Data.adaptedScenario,
           adaptation_context: {
             contextSummary: q4Data.contextSummary,
             wasAdapted: true
@@ -280,7 +280,7 @@ export const AdaptiveFlowTester = () => {
         }
       });
 
-      if (q5Error || !q5Data?.adaptedQuestion) {
+      if (q5Error || !q5Data?.adaptedScenario) {
         updateStep(7, 'error', `Q5 adaptation failed: ${q5Error?.message}`);
         return;
       }
@@ -297,7 +297,7 @@ export const AdaptiveFlowTester = () => {
           response_data: {
             response: "I'll call the team together immediately and investigate why we're behind. If it's my planning, I own it. If it's external blocks, we problem-solve together. I'll stay late with them to catch up, not just delegate and leave."
           },
-          adapted_question_text: q5Data.adaptedQuestion,
+          adapted_question_text: q5Data.adaptedScenario,
           adaptation_context: {
             contextSummary: q5Data.contextSummary,
             wasAdapted: true
