@@ -595,12 +595,33 @@ const Assessment = () => {
 
       console.log('[Assessment Submit] Status updated successfully');
 
-      // Trigger analysis in background (don't wait)
+      // Trigger analysis in background (with error tracking)
+      console.log('[Assessment Submit] Invoking analyze-assessment for ID:', id);
+      
       supabase.functions.invoke("analyze-assessment", {
         body: { assessmentId: id },
+      })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[Assessment Submit] analyze-assessment failed:', error);
+          // Log to analytics for admin visibility
+          supabase.from("adaptation_analytics").insert({
+            assessment_id: id,
+            question_number: 0,
+            was_adapted: false,
+            adaptation_success: false,
+            fallback_used: true,
+            adaptation_context: { error: error.message, stage: 'initial_analysis' }
+          });
+        } else {
+          console.log('[Assessment Submit] analyze-assessment succeeded:', data);
+        }
+      })
+      .catch(err => {
+        console.error('[Assessment Submit] analyze-assessment exception:', err);
       });
 
-      // Navigate to thank you page immediately
+      // Navigate to thank you page immediately (don't wait for analysis)
       navigate(`/thank-you?id=${id}`);
     } catch (error) {
       console.error('[Assessment Submit] Error during submission:', error);

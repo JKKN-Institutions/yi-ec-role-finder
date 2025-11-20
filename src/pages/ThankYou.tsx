@@ -17,13 +17,13 @@ const ThankYou = () => {
     }
     setShowSuccess(true);
 
-    // STEP 5: Fallback check - ensure assessment is marked completed
-    // This catches cases where client-side update failed
+    // STEP 5: Fallback check - ensure assessment is marked completed AND analyzed
+    // This catches cases where client-side update failed or analysis didn't run
     const ensureCompleted = async () => {
       try {
         const { data: assessment } = await supabase
           .from("assessments")
-          .select("status")
+          .select("status, id")
           .eq("id", assessmentId)
           .single();
 
@@ -37,6 +37,28 @@ const ThankYou = () => {
             })
             .eq("id", assessmentId);
           console.log("[ThankYou] Status updated to completed");
+        }
+
+        // Check if results exist
+        const { data: results } = await supabase
+          .from("assessment_results")
+          .select("id")
+          .eq("assessment_id", assessmentId)
+          .maybeSingle();
+
+        if (!results) {
+          console.log("[ThankYou] No results found, triggering analysis...");
+          
+          // Retry analysis
+          const { error: analysisError } = await supabase.functions.invoke("analyze-assessment", {
+            body: { assessmentId },
+          });
+          
+          if (analysisError) {
+            console.error("[ThankYou] Analysis retry failed:", analysisError);
+          } else {
+            console.log("[ThankYou] Analysis triggered successfully");
+          }
         }
       } catch (error) {
         console.error("[ThankYou] Error checking/updating status:", error);
