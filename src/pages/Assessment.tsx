@@ -614,6 +614,13 @@ const Assessment = () => {
           questionType: question.type,
           currentText,
           scenario: question.type === 'long-text' ? question.scenario : undefined,
+          adaptedQuestionText: adaptedQuestions[currentQuestion]?.scenario,
+          adaptationContext: adaptedQuestions[currentQuestion]?.contextSummary,
+          previousResponses: {
+            q1_part_a: responses[1]?.partA,
+            q1_verticals: responses[1]?.verticals,
+            q2_initiative: responses[2]?.response,
+          }
         }
       });
 
