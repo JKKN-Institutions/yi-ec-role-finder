@@ -142,18 +142,18 @@ Generate 3 complete, different initiative design examples with different approac
         const hasContext = previousResponses?.q2_initiative;
         
         if (hasContext) {
-          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-The candidate designed this initiative: "${initiativeContext.substring(0, 200)}..."
+          systemPrompt = `You help people write answers for Yi Erode assessment.
+The person made this plan: "${initiativeContext.substring(0, 200)}..."
 
-Generate 3 honest response examples to a Saturday deadline crisis for THEIR initiative.
-Each response should:
-1. Reference their specific initiative context
-2. Show different commitment levels (immediate yes, conditional yes, apologetic no)
-3. Explain reasoning and constraints honestly
-4. Demonstrate responsibility and self-awareness
+Write 3 honest example answers for THEIR plan's Saturday deadline crisis.
+Each answer should:
+1. Talk about their specific plan
+2. Show different choices (come now, come later, can't come)
+3. Say why honestly
+4. Handle it in a good way
 
-Make each example show different availability levels while staying authentic.
-Each response should be approximately 250 characters (50% of limit).`;
+Make each example show different choices while staying real.
+Each answer should be about 250 letters (50% of limit).`;
 
           userPrompt = `Their Initiative: "${initiativeContext}"
 Crisis Scenario: ${adaptedQuestionText || scenario}
@@ -162,285 +162,214 @@ Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing
 
 Generate 3 responses showing different commitment levels for THEIR specific initiative.`;
         } else {
-          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-Generate 3 complete, honest response examples that candidates can choose from.
-Each response should:
-1. Give an honest, authentic response showing different levels of availability
-2. Explain their reasoning and any constraints they face
-3. Show how they would handle the situation responsibly
-4. Demonstrate self-awareness about their capacity
+          systemPrompt = `You help people write answers for Yi Erode assessment.
+Write 3 simple example answers that show different choices.
+Each answer should:
+1. Give an honest answer showing different levels of being free (can come right now, can come but later, sorry can't come)
+2. Say why and any reasons they can't
+3. Show how they would handle it in a good way
+4. Be honest about what they can really do
 
-Make each example DIFFERENT - show different commitment levels (immediate yes, conditional yes, apologetic no).
-Each response should be approximately 250 characters (about 50% of the 500 character limit) and feel genuine.`;
+Make each example DIFFERENT - show different answers (yes right now, yes but with conditions, sorry no).
+Each answer should be about 250 letters (50% of the 500 limit) and sound real.`;
 
           userPrompt = `Question: "${questionTitle}"
 Scenario: ${scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Generate 3 complete, different honest responses showing various commitment levels and boundary-setting approaches.`;
+Generate 3 complete, different response examples showing different commitment levels.`;
         }
 
       } else if (questionNumber === 4) {
-        const problemContext = previousResponses?.q1_part_a || 'community issues';
-        const initiativeContext = previousResponses?.q2_initiative || 'community work';
-        const hasContext = previousResponses?.q1_part_a || previousResponses?.q2_initiative;
-        
-        if (hasContext) {
-          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-Based on their interests:
-- Problem: "${problemContext.substring(0, 150)}..."
-- Initiative: "${initiativeContext.substring(0, 150)}..."
+        systemPrompt = `You help people write answers for Yi Erode assessment.
 
-The candidate is being asked about their 2026 aspirations for Yi Erode.
+The person is being asked about their goals for Yi Erode 2026.
 
-Generate 3 FUTURE-ORIENTED goal examples in domains RELEVANT to their interests.
-Each response should:
-1. Describe a specific, ambitious goal they could pursue in Yi Erode 2026
-2. Connect naturally to their problem/initiative interests but show bigger thinking
-3. Explain the impact they want to create and why it matters
-4. Anticipate realistic challenges they might face (resources, buy-in, scale, etc.)
-5. Define what success would look like by end of 2026 with measurable criteria
+Write 3 simple examples of future goals.
+Each answer should:
+1. Say a clear, big goal for Yi Erode 2026
+2. Say what good change they want to make
+3. Talk about real problems they might face (money, people saying yes, growing bigger, keeping it going)
+4. Say what success looks like with clear measures
 
-Make each example cover DIFFERENT goal types (e.g., scaling their initiative, starting something new, building capacity, creating systemic change) relevant to THEIR context.
-Each response should be approximately 200 characters (50% of limit) and feel aspirational yet achievable.`;
+Make each example DIFFERENT - helping people learn skills, helping community, new ideas, changing systems, etc.
+Each answer should be about 200 letters (50% of the 400 limit) and feel big but real.`;
 
-          userPrompt = `Their Context:
-Problem Interest: "${problemContext.substring(0, 100)}..."
-Initiative Type: "${initiativeContext.substring(0, 100)}..."
-
-Adapted Scenario: ${adaptedQuestionText || scenario}
+        userPrompt = `Question: "${questionTitle}"
+Scenario: ${adaptedQuestionText || scenario}
 
 Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
 
-Generate 3 aspirational 2026 goal examples specifically connected to THEIR interests in Yi Erode, not generic goals.`;
-        } else {
-          systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-
-The candidate is being asked about their aspirations for Yi Erode 2026.
-
-Generate 3 complete future goal examples that candidates can draw inspiration from.
-Each response should:
-1. Describe a specific, ambitious goal for Yi Erode 2026
-2. Explain the impact they want to create
-3. Anticipate realistic challenges (resources, buy-in, scale, sustainability)
-4. Define what success looks like with measurable criteria
-
-Make each example DIFFERENT - capacity building, community impact, innovation, systems change, etc.
-Each response should be approximately 200 characters (about 50% of the 400 character limit) and feel aspirational yet grounded.`;
-
-          userPrompt = `Question: "${questionTitle}"
-Scenario: ${scenario}
-
-Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
-
-Generate 3 complete, different future goal examples for Yi Erode 2026 covering different types of aspirations.`;
-        }
+Generate 3 complete goal statements for Yi Erode 2026, each with a different focus area.`;
       }
 
     } else if (questionType === 'radio') {
-      const initiativeContext = previousResponses?.q2_initiative || 'their initiative';
-      const hasContext = previousResponses?.q2_initiative && questionNumber === 5;
+      systemPrompt = `You help people with Yi Erode assessment. Explain what each leadership style means and when it works best.`;
       
-      if (hasContext) {
-        systemPrompt = `You are a helpful assistant for Yi Erode leadership assessment.
-The candidate designed this initiative: "${initiativeContext.substring(0, 200)}..."
+      userPrompt = `Question: "${questionTitle}"
+Scenario: ${scenario || 'Leadership style selection'}
 
-Explain each leadership style option in the context of THEIR specific initiative.
-Show how each style would apply to their particular project and team dynamics.
-Provide 3-4 sentences per style.`;
-
-        userPrompt = `Their Initiative: "${initiativeContext}"
-Scenario: ${adaptedQuestionText || scenario}
-
-Current selection: ${currentText || 'None selected yet'}
-
-Explain each leadership style specifically in the context of THEIR initiative.`;
-      } else {
-        systemPrompt = `You are a helpful assistant for Yi Erode leadership assessment.
-Provide a brief explanation of what each leadership style option means and when it's most effective.`;
-
-        userPrompt = `Question: "${questionTitle}"
-Scenario: ${scenario}
-
-Current selection: ${currentText || 'None selected yet'}
-
-Provide a brief explanation (3-4 sentences) helping them understand what each leadership style option means.`;
-      }
+Explain what each leadership style option means and when it might work best, in a simple and friendly way.`;
     }
 
-    // Call Lovable AI with tool calling for structured output
-    const body: any = {
+    // Build the request body
+    const requestBody: any = {
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.8,
+      temperature: 0.7,
     };
 
-    // Only use tool calling for non-radio questions
+    // For non-radio questions, use tool calling to get structured output
     if (questionType !== 'radio') {
-      body.tools = [
+      requestBody.tools = [
         {
-          type: "function",
+          type: 'function',
           function: {
-            name: "provide_suggestions",
-            description: "Return 3 complete example responses for the assessment question.",
+            name: 'provide_suggestions',
+            description: 'Provide 3 example response suggestions for the assessment question',
             parameters: {
-              type: "object",
+              type: 'object',
               properties: {
                 suggestions: {
-                  type: "array",
+                  type: 'array',
                   items: {
-                    type: "object",
+                    type: 'object',
                     properties: {
-                      title: { type: "string", description: "Brief title describing this approach (3-5 words)" },
-                      content: { type: "string", description: "Complete response text" }
+                      content: { 
+                        type: 'string',
+                        description: 'The complete example response text'
+                      }
                     },
-                    required: ["title", "content"],
-                    additionalProperties: false
+                    required: ['content']
                   },
                   minItems: 3,
                   maxItems: 3
                 }
               },
-              required: ["suggestions"],
-              additionalProperties: false
+              required: ['suggestions']
             }
           }
         }
       ];
-      body.tool_choice = { type: "function", function: { name: "provide_suggestions" } };
+      requestBody.tool_choice = { type: 'function', function: { name: 'provide_suggestions' } };
     }
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    console.log('Calling AI with question:', questionNumber, 'type:', questionType);
+    
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('Lovable AI error:', aiResponse.status, errorText);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI API error:', response.status, errorText);
       
       // Handle rate limiting
-      if (aiResponse.status === 429) {
+      if (response.status === 429) {
+        console.log('Rate limit hit, returning graceful fallback');
         return new Response(
-          JSON.stringify({
-            suggestions: questionType === 'radio' 
-              ? "We're experiencing high demand right now. Please try again in a moment, or continue with your own answer - your authentic voice matters most!"
-              : [
-                  { title: "High Demand", content: "We're experiencing high demand. Please continue with your own response - your authentic voice and personal experience are what matter most in this assessment." },
-                  { title: "Rate Limited", content: "AI Help is temporarily unavailable due to high usage. Feel free to craft your own response based on the scenario provided." },
-                  { title: "Continue Independently", content: "While AI assistance is temporarily unavailable, remember that your genuine thoughts and experiences are the most valuable part of this assessment." }
-                ],
+          JSON.stringify({ 
+            suggestions: [
+              { content: "We're getting a lot of requests right now. Please try again in a moment, or write your answer in your own words." }
+            ],
             questionNumber,
             questionType,
-            error: 'rate_limited',
-            message: 'AI Help temporarily unavailable due to high demand'
+            fallback: true 
           }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200 // Return 200 with graceful degradation
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
       }
       
       // Handle payment required
-      if (aiResponse.status === 402) {
+      if (response.status === 402) {
+        console.log('Payment required, returning graceful fallback');
         return new Response(
-          JSON.stringify({
-            suggestions: questionType === 'radio'
-              ? "AI Help requires additional credits. Please contact support or continue with your own answer."
-              : [
-                  { title: "Credits Required", content: "AI Help requires additional credits. Your own perspective and experiences are equally valuable for this assessment." },
-                  { title: "Manual Response", content: "Please continue by crafting your own response to the scenario. Your authentic voice is what we're looking for." },
-                  { title: "Alternative Approach", content: "Consider drawing from your own experiences and ideas to answer this question independently." }
-                ],
+          JSON.stringify({ 
+            suggestions: [
+              { content: "AI Help is temporarily unavailable. Please write your answer in your own words." }
+            ],
             questionNumber,
             questionType,
-            error: 'payment_required',
-            message: 'AI Help requires additional credits'
+            fallback: true 
           }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
       }
       
-      throw new Error(`Lovable AI request failed: ${aiResponse.status} - ${errorText}`);
+      throw new Error(`AI API error: ${response.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    
+    const data = await response.json();
+    console.log('AI response received');
+
     let suggestions;
+
     if (questionType === 'radio') {
-      suggestions = aiData.choices[0].message.content;
+      // For radio questions, return the direct content
+      suggestions = [{ content: data.choices[0].message.content }];
     } else {
-      const toolCall = aiData.choices[0].message.tool_calls?.[0];
-      if (toolCall && toolCall.function) {
-        const args = JSON.parse(toolCall.function.arguments);
-        suggestions = args.suggestions;
+      // For other questions, extract from tool calls
+      const toolCalls = data.choices[0].message.tool_calls;
+      if (toolCalls && toolCalls.length > 0) {
+        const functionArgs = JSON.parse(toolCalls[0].function.arguments);
+        suggestions = functionArgs.suggestions;
       } else {
-        console.warn('No tool call response, using fallback');
-        // Fallback structured suggestions
-        suggestions = [
-          { title: "Fallback Response", content: "AI tool calling failed. Please craft your own response to the question." },
-          { title: "Manual Approach", content: "Draw from your own experiences and ideas to provide an authentic answer." },
-          { title: "Independent Thinking", content: "Your genuine perspective is valuable - proceed with your own thoughts on this scenario." }
-        ];
+        // Fallback if tool calling fails
+        console.warn('Tool calling failed, attempting to extract suggestions from content');
+        const content = data.choices[0].message.content;
+        
+        // Try to parse as JSON
+        try {
+          const parsed = JSON.parse(content);
+          suggestions = parsed.suggestions || [{ content }];
+        } catch {
+          // If not JSON, return as single suggestion
+          suggestions = [{ content }];
+        }
       }
     }
 
-    console.log('AI Help generated successfully for Q', questionNumber);
-
     return new Response(
-      JSON.stringify({
-        suggestions,
+      JSON.stringify({ 
+        suggestions, 
         questionNumber,
-        questionType,
+        questionType 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error in ai-help-assessment:', error);
     
-    // Provide graceful fallback based on question type
-    const fallbackSuggestions = questionType === 'radio'
-      ? "AI Help encountered an error. Please select the option that best represents your natural leadership style."
-      : [
-          { 
-            title: "Error Occurred", 
-            content: "AI Help encountered an issue. Please continue by crafting your own response based on your experiences and ideas." 
-          },
-          { 
-            title: "Manual Response", 
-            content: "While AI assistance is unavailable, your authentic voice and personal perspective are what truly matter in this assessment." 
-          },
-          { 
-            title: "Independent Approach", 
-            content: "Draw from your own experiences to provide a genuine, thoughtful response to the scenario presented." 
-          }
-        ];
-    
+    // Return a graceful fallback response that won't break the UI
     return new Response(
-      JSON.stringify({
-        suggestions: fallbackSuggestions,
-        questionNumber: questionNumber,
-        questionType: questionType,
-        error: 'internal_error',
-        message: error.message || 'An unexpected error occurred',
-        fallback: true
+      JSON.stringify({ 
+        suggestions: [
+          { content: "AI Help is having trouble right now. Please write your answer in your own words, or try again in a moment." }
+        ],
+        questionNumber: questionNumber || 0,
+        questionType: questionType || 'unknown',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        fallback: true 
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 // Return 200 for graceful degradation
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }

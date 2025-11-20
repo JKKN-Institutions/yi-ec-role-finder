@@ -28,7 +28,7 @@ serve(async (req) => {
     }
 
     // Validate required data based on question number
-    const { q1_part_a, q1_verticals, q2_initiative, q3_crisis } = previousResponses || {};
+    const { q1_part_a, q1_verticals, q2_initiative } = previousResponses || {};
     
     if (questionNumber === 2) {
       if (!q1_part_a || !q1_verticals || q1_verticals.length === 0) {
@@ -112,7 +112,7 @@ serve(async (req) => {
         error: 'Unsupported question number',
         useDefault: true 
       }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -123,15 +123,12 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'Unknown error',
         useDefault: true 
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
-// Q2 Adaptation: Reference problem and verticals
+// Q2 Adaptation: Personalize based on Q1 problem and verticals
 async function adaptQ2(
   problemText: string, 
   verticals: string[], 
@@ -151,9 +148,11 @@ async function adaptQ2(
       messages: [
         {
           role: 'system',
-          content: `You help make assessment questions personal for Yi Erode candidates. Keep it fair and the same for everyone.
-
-The person wrote about this problem (Q1):
+          content: 'You help make assessment questions personal for Yi Erode candidates. Keep it fair and the same for everyone.'
+        },
+        {
+          role: 'user',
+          content: `The person wrote about this problem (Q1):
 "${problemText.substring(0, 400)}"
 
 Write a short problem summary in 2-5 words that shows the main issue.
@@ -163,14 +162,6 @@ For example:
 - "youth lacking opportunities" → "youth jobs"
 
 IMPORTANT: Only write the 2-5 word summary, nothing else.`
-        },
-        {
-          role: 'user',
-          content: `Extract a 2-5 word problem summary from this text:
-
-"${problemText}"
-
-Respond with ONLY the 2-5 word summary, nothing else. Examples: "waste problem", "no youth programs", "bad roads", "school quality".`
         }
       ],
       temperature: 0.3,
@@ -191,7 +182,7 @@ Respond with ONLY the 2-5 word summary, nothing else. Examples: "waste problem",
   console.log('Generating adapted Q2 scenario...');
   
   const verticalsText = verticals.join(', ');
-  const defaultQ2 = "Let's say Yi Erode gives you 6 months and ₹50,000 to work on the problem you described in Q1. Design your initiative: What specific actions would you take? How would you reach 10,000+ people? What lasting change would you create?";
+  const defaultQ2 = "Yi Erode gives you 6 months and ₹50,000 to fix the problem from Q1. What would you do? Who would help you? How would you reach 10,000+ people? What change would you make?";
 
   const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -261,7 +252,7 @@ async function adaptQ3(
 ) {
   console.log('Adapting Q3 based on Q1 and Q2...');
 
-  // Step 1: Extract initiative summary (3-7 words)
+  // Step 1: Extract initiative summary (3-6 words)
   const initiativeSummaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -332,11 +323,11 @@ IMPORTANT: Only write the 3-6 word plan summary, nothing else.`
   const problemSummaryData = await problemSummaryResponse.json();
   const problemSummary = problemSummaryData.choices[0].message.content.trim();
 
-  // Step 3: Get primary vertical (first one if available)
-  const primaryVertical = verticals.length > 0 ? verticals[0] : 'your vertical';
+  // Determine primary vertical
+  const primaryVertical = verticals[0] || 'your chosen area';
 
-  // Step 4: Generate adapted Q3 scenario
-  const defaultQ3 = "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event. Can you come to the office now for 3-4 hours?' What's your honest response?";
+  // Step 3: Generate adapted Q3 scenario
+  const defaultQ3 = "It's Saturday, 6 PM. You're with family. Your team leader calls: 'We need help right now for tomorrow's big event. Can you come for 3-4 hours?' What would you say?";
 
   const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -349,30 +340,25 @@ IMPORTANT: Only write the 3-6 word plan summary, nothing else.`
       messages: [
         {
           role: 'system',
-          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized scenarios that reference their previous responses while maintaining the Saturday crisis test of commitment.'
+          content: 'You help make Q3 personal for Yi Erode candidates. Keep it fair while making the crisis feel real to their work.'
         },
         {
           role: 'user',
           content: `Original Q3: "${defaultQ3}"
 
-Context from previous questions:
-- Problem they care about: ${problemSummary}
-- Initiative they designed: ${initiativeSummary}
-- Primary vertical: ${primaryVertical}
+Person's plan summary: "${initiativeSummary}"
+Person's problem focus: "${problemSummary}"
+Main area: ${primaryVertical}
 
-Generate an adapted Q3 that:
-1. Sets the same scene: Saturday 6 PM, relaxing with family
-2. References their PRIMARY VERTICAL (${primaryVertical}) as the caller
-3. References their INITIATIVE (${initiativeSummary}) as what needs preparation for tomorrow's launch/event
-4. Maintains the time pressure: come now for 3-4 hours
-5. Ends with the same question: "What's your honest response?"
-6. Keep it conversational and realistic
-7. Total length should be 100-150 words
+Make a new Q3 that:
+1. Starts by saying they are working on ${initiativeSummary} in the ${primaryVertical} area
+2. Keeps the same setup: Saturday 6 PM, family time, urgent call
+3. Makes the urgent work about THEIR plan getting ready for the event
+4. Asks for their honest answer
+5. Sound real and direct
+6. Be 80-120 words long
 
-Example structure:
-"It's Saturday, 6 PM. You're with family when your ${primaryVertical} vertical head calls: 'We need urgent help preparing for tomorrow's launch of your ${initiativeSummary}. Can you come to the office now for 3-4 hours to finalize materials?' What's your honest response?"
-
-Respond with ONLY the adapted question text, nothing else.`
+Write ONLY the new question, nothing else.`
         }
       ],
       temperature: 0.5,
@@ -382,7 +368,7 @@ Respond with ONLY the adapted question text, nothing else.`
   if (!adaptationResponse.ok) {
     const errorText = await adaptationResponse.text();
     console.error('Failed to generate Q3 adapted scenario:', adaptationResponse.status, errorText);
-    throw new Error('Failed to generate Q3 adapted scenario');
+    throw new Error('Failed to generate adapted scenario');
   }
 
   const adaptationData = await adaptationResponse.json();
@@ -478,7 +464,7 @@ Write ONLY a list with commas, nothing else.`
   const problemSummary = problemSummaryData.choices[0].message.content.trim();
 
   // Step 3: Generate adapted Q4 scenario
-  const defaultQ4 = "What's the most significant achievement you want to accomplish in Yi Erode 2026? Describe a specific, ambitious goal you want to reach this year - something that would make you genuinely proud. What impact do you want to create, what challenges do you expect to face, and what success would look like?";
+  const defaultQ4 = "What do you want to do in Yi Erode 2026 that would make you really proud? What is your big goal? What change do you want to make? What problems might you face? How will you know you succeeded?";
 
   const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -491,31 +477,25 @@ Write ONLY a list with commas, nothing else.`
       messages: [
         {
           role: 'system',
-          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized questions that guide them to share relevant achievements while maintaining the SKILL assessment criteria.'
+          content: 'You help make Q4 personal for Yi Erode candidates. Keep it fair while connecting to what they care about.'
         },
         {
           role: 'user',
           content: `Original Q4: "${defaultQ4}"
 
-Context from previous questions:
-- Problem they care about: ${problemSummary}
-- Relevant skill domains: ${relevantDomains}
-- Selected verticals: ${verticals.join(', ')}
-- Initiative they designed: ${initiativeText.substring(0, 200)}...
+Person's problem focus: "${problemSummary}"
+Areas that matter: ${relevantDomains}
 
-Generate an adapted Q4 that:
-1. Acknowledges their passion for ${problemSummary} and their ${relevantDomains} initiative design
-2. Asks what specific, ambitious GOAL they want to accomplish in Yi Erode 2026
-3. Should feel connected to their Q1 problem and Q2 initiative but allows them to set ANY goal within Yi Erode
-4. Encourages them to think beyond their immediate Q2 initiative - what's their bigger 2026 aspiration?
-5. Asks them to define: what impact they want, what challenges they anticipate, what success looks like
-6. Maintains aspirational yet realistic tone - ambitious but achievable within 2026
-7. Total length should be 140-170 words
+Make a new Q4 that:
+1. Starts by saying they care about ${problemSummary} and work in ${relevantDomains}
+2. Asks about their big goal for Yi Erode 2026 in THESE areas
+3. Asks what change they want to make
+4. Asks what problems they might face
+5. Asks how they will know they won
+6. Sound hopeful but real
+7. Be 100-150 words long
 
-Example structure:
-"You've shown passion for ${problemSummary} and designed a ${relevantDomains} initiative. Now think bigger - what's the most significant achievement you want to accomplish in Yi Erode 2026? This could build on your initiative or be something entirely different within Yi Erode. What ambitious goal would make you genuinely proud? Describe the impact you want to create, the challenges you expect to face, and what success would look like by the end of 2026."
-
-Respond with ONLY the adapted question text, nothing else.`
+Write ONLY the new question, nothing else.`
         }
       ],
       temperature: 0.5,
@@ -525,7 +505,7 @@ Respond with ONLY the adapted question text, nothing else.`
   if (!adaptationResponse.ok) {
     const errorText = await adaptationResponse.text();
     console.error('Failed to generate Q4 adapted scenario:', adaptationResponse.status, errorText);
-    throw new Error('Failed to generate Q4 adapted scenario');
+    throw new Error('Failed to generate adapted scenario');
   }
 
   const adaptationData = await adaptationResponse.json();
@@ -552,7 +532,7 @@ async function adaptQ5(
 ) {
   console.log('Adapting Q5 based on Q2...');
 
-  // Step 1: Extract initiative summary (3-7 words)
+  // Step 1: Extract initiative summary (4-7 words)
   const initiativeSummaryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -596,46 +576,8 @@ IMPORTANT: Only write the 4-7 word summary that fits the sentence, nothing else.
   const initiativeSummary = initiativeSummaryData.choices[0].message.content.trim();
   console.log('Extracted initiative summary for Q5:', initiativeSummary);
 
-  // Step 2: Generate a specific deliverable/deadline for the scenario
-  const deliverableResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        {
-          role: 'system',
-          content: 'Generate a realistic specific deliverable or milestone that would be critical for this initiative.'
-        },
-        {
-          role: 'user',
-          content: `For this initiative: "${initiativeSummary}"
-
-Generate ONE specific, realistic deliverable or milestone that a team might miss a deadline for.
-
-Examples:
-- "recruiting 100 volunteers"
-- "printing 500 campaign posters"
-- "booking the community hall"
-- "collecting survey responses from 200 students"
-- "finalizing the training curriculum"
-
-Respond with ONLY the deliverable phrase (3-8 words), nothing else.`
-        }
-      ],
-      temperature: 0.5,
-    }),
-  });
-
-  const deliverableData = await deliverableResponse.json();
-  const specificDeliverable = deliverableData.choices[0].message.content.trim();
-  console.log('Generated specific deliverable:', specificDeliverable);
-
-  // Step 3: Generate adapted Q5 scenario (keeping it focused on the scenario text)
-  const defaultQ5 = "Your team misses a critical deadline. What's your first instinct?";
+  // Step 2: Generate adapted Q5 scenario
+  const defaultQ5 = "Your team misses an important deadline. What do you do first?";
 
   const adaptationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -655,10 +597,9 @@ Respond with ONLY the deliverable phrase (3-8 words), nothing else.`
           content: `Original Q5: "${defaultQ5}"
 
 Person's plan: ${initiativeSummary}
-What they missed: ${specificDeliverable}
 
 Make a new Q5 that:
-1. Says the team working on "${initiativeSummary}" missed "${specificDeliverable}"
+1. Says the team working on "${initiativeSummary}" missed an important deadline
 2. Makes it urgent and real
 3. Ends with "What do you do first?"
 4. Keep it short: 2-3 sentences max
@@ -674,19 +615,18 @@ Write ONLY the new question, nothing else.`
   if (!adaptationResponse.ok) {
     const errorText = await adaptationResponse.text();
     console.error('Failed to generate Q5 adapted scenario:', adaptationResponse.status, errorText);
-    throw new Error('Failed to generate Q5 adapted scenario');
+    throw new Error('Failed to generate adapted scenario');
   }
 
   const adaptationData = await adaptationResponse.json();
   const adaptedScenario = adaptationData.choices[0].message.content.trim();
-  console.log('Generated Q5 adapted scenario:', adaptedScenario);
+  console.log('Generated Q5 adapted scenario:', adaptedScenario.substring(0, 100) + '...');
 
   return new Response(
     JSON.stringify({
       success: true,
       adaptedScenario,
-      contextSummary: initiativeSummary,
-      specificDeliverable
+      contextSummary: initiativeSummary
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
