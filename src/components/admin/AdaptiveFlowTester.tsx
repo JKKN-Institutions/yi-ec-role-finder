@@ -106,8 +106,8 @@ export const AdaptiveFlowTester = () => {
         .from('assessment_responses')
         .update({
           response_data: {
-            part_a: q1Problem,
-            part_b: selectedVerticals,
+            partA: q1Problem,
+            partB: selectedVerticals,
             hasAnalyzed: true,
             suggestedVerticals: selectedVerticals
           }
