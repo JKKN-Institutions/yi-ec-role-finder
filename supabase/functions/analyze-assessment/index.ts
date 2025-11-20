@@ -325,26 +325,26 @@ Return scores and brief reasoning.`;
     // 5. CALCULATE SKILL SCORE (Q4 + Q5) - 0-100
     let skillScore = 50; // Fallback
     let skillBreakdown: any = {
-      achievement_quality: 15,
-      obstacle_navigation: 15,
-      outcome_focus: 10,
+      goal_clarity: 15,
+      realistic_ambition: 15,
+      challenge_anticipation: 10,
       leadership_approach: 10,
       reasoning: "Using fallback scoring due to AI unavailability"
     };
 
     try {
-      const skillPrompt = `You are analyzing Q4 and Q5 of a leadership assessment. Score the candidate's execution capability and leadership track record.
+      const skillPrompt = `You are analyzing Q4 and Q5 of a leadership assessment. Score the candidate's goal-setting capability and leadership style.
 
-Q4 - "Describe your most significant achievement in the last 2 years - something you're genuinely proud of. What did you do, what obstacles did you face, and what was the outcome?"
+Q4 - "What's the most significant achievement you want to accomplish in Yi Erode 2026? Describe a specific, ambitious goal you want to reach this year. What impact do you want to create, what challenges do you expect to face, and what success would look like?"
 RESPONSE: "${achievementStory}"
 
 Q5 - "Your team misses a critical deadline. What's your first instinct?"
 RESPONSE: ${leadershipStyle}
 
 Score these dimensions:
-1. ACHIEVEMENT QUALITY (0-30): How significant is their achievement? Minor = 10-15, notable = 16-23, exceptional = 24-30
-2. OBSTACLE NAVIGATION (0-30): How well did they handle challenges? No obstacles mentioned = 5-12, some challenges = 13-21, significant obstacles overcome = 22-30
-3. OUTCOME FOCUS (0-20): Are outcomes clear and measurable? Vague = 5-10, some detail = 11-15, specific results = 16-20
+1. GOAL CLARITY (0-30): How specific, measurable, and well-defined is their 2026 goal? Vague aspirations = 10-15, some specificity = 16-23, crystal clear goal = 24-30
+2. REALISTIC AMBITION (0-30): Is the goal ambitious yet achievable within 2026 Yi Erode context? Too easy/unrealistic = 10-15, balanced = 16-23, perfectly ambitious = 24-30
+3. CHALLENGE ANTICIPATION (0-20): Do they demonstrate realistic awareness of obstacles? No obstacles mentioned = 5-10, some awareness = 11-15, thorough understanding = 16-20
 4. LEADERSHIP APPROACH (0-20): Does their natural style fit EC work? Poor fit = 5-10, okay fit = 11-15, strong fit = 16-20
 
 Consider leadership style meanings:
@@ -365,17 +365,17 @@ Return scores and brief reasoning.`;
             type: "function",
             function: {
               name: "score_skill",
-              description: "Score execution capability and leadership track record",
+              description: "Score goal-setting capability and leadership style fit",
               parameters: {
                 type: "object",
                 properties: {
-                  achievement_quality: { type: "integer", minimum: 0, maximum: 30 },
-                  obstacle_navigation: { type: "integer", minimum: 0, maximum: 30 },
-                  outcome_focus: { type: "integer", minimum: 0, maximum: 20 },
+                  goal_clarity: { type: "integer", minimum: 0, maximum: 30 },
+                  realistic_ambition: { type: "integer", minimum: 0, maximum: 30 },
+                  challenge_anticipation: { type: "integer", minimum: 0, maximum: 20 },
                   leadership_approach: { type: "integer", minimum: 0, maximum: 20 },
                   reasoning: { type: "string" }
                 },
-                required: ["achievement_quality", "obstacle_navigation", "outcome_focus", "leadership_approach", "reasoning"],
+                required: ["goal_clarity", "realistic_ambition", "challenge_anticipation", "leadership_approach", "reasoning"],
                 additionalProperties: false
               }
             }
@@ -386,9 +386,9 @@ Return scores and brief reasoning.`;
       const toolCall = skillResult.choices[0].message.tool_calls[0];
       skillBreakdown = JSON.parse(toolCall.function.arguments);
       skillScore = 
-        skillBreakdown.achievement_quality +
-        skillBreakdown.obstacle_navigation +
-        skillBreakdown.outcome_focus +
+        skillBreakdown.goal_clarity +
+        skillBreakdown.realistic_ambition +
+        skillBreakdown.challenge_anticipation +
         skillBreakdown.leadership_approach;
     } catch (error) {
       console.error("SKILL scoring failed:", error);
