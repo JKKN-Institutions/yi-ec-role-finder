@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Star, Download, Trash2, Mail, Loader2 } from "lucide-react";
+import { ArrowLeft, Star, Download, Trash2, Mail, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ScoringBreakdown } from "@/components/admin/ScoringBreakdown";
@@ -75,6 +75,7 @@ const CandidateProfile = () => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [reanalyzing, setReanalyzing] = useState(false);
 
   useEffect(() => {
     loadCandidate();
@@ -266,6 +267,28 @@ const CandidateProfile = () => {
     linkElement.click();
   };
 
+  const handleReanalyze = async () => {
+    if (!assessmentId) return;
+
+    setReanalyzing(true);
+    toast.info("Re-analyzing assessment...");
+
+    const { data, error } = await supabase.functions.invoke("analyze-assessment", {
+      body: { assessmentId },
+    });
+
+    if (error) {
+      console.error("[Reanalyze] Failed:", error);
+      toast.error("Re-analysis failed. Please try again.");
+    } else {
+      console.log("[Reanalyze] Success:", data);
+      toast.success("Re-analysis complete!");
+      await loadCandidate();
+    }
+
+    setReanalyzing(false);
+  };
+
   const getQuadrantColor = (quadrant: string) => {
     const colors: Record<string, string> = {
       Q1: "bg-green-500",
@@ -352,6 +375,20 @@ const CandidateProfile = () => {
                   </div>
 
                   <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleReanalyze}
+                      disabled={reanalyzing}
+                    >
+                      {reanalyzing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Re-analyze
+                    </Button>
+
                     <Button
                       variant="outline"
                       size="sm"
