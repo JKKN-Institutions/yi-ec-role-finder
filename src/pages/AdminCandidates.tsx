@@ -6,12 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Search, Eye, Filter, RefreshCw, TrendingUp, CheckSquare, Square } from "lucide-react";
+import { Loader2, Search, Eye, Filter, RefreshCw, TrendingUp, CheckSquare, Square, Trash2, Download, Tags } from "lucide-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CandidateTagManager } from "@/components/admin/CandidateTagManager";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Candidate {
   id: string;
@@ -38,6 +48,11 @@ const AdminCandidates = () => {
   const [reanalyzing, setReanalyzing] = useState<string | null>(null);
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [selectedTagId, setSelectedTagId] = useState<string>("");
+  const [selectedStatusChange, setSelectedStatusChange] = useState<string>("");
+  const [bulkReanalyzing, setBulkReanalyzing] = useState(false);
 
   useEffect(() => {
     // Apply URL params on mount
@@ -52,7 +67,22 @@ const AdminCandidates = () => {
     if (shortlisted === "true") setReviewFilter("shortlisted");
     
     loadCandidates();
+    loadTags();
   }, []);
+
+  const loadTags = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("candidate_tags")
+        .select("id, name, color")
+        .order("name");
+
+      if (error) throw error;
+      setAvailableTags(data || []);
+    } catch (error) {
+      console.error("Error loading tags:", error);
+    }
+  };
 
   const loadCandidates = async () => {
     setLoading(true);
@@ -215,6 +245,185 @@ const AdminCandidates = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    setBulkActionLoading(true);
+    setShowDeleteDialog(false);
+    try {
+      const selectedIds = Array.from(selectedCandidates);
+      
+      // Delete related records first (cascade)
+      await supabase.from("adaptation_analytics").delete().in("assessment_id", selectedIds);
+      await supabase.from("assessment_tags").delete().in("assessment_id", selectedIds);
+      await supabase.from("assessment_responses").delete().in("assessment_id", selectedIds);
+      await supabase.from("assessment_results").delete().in("assessment_id", selectedIds);
+      
+      // Finally delete assessments
+      const { error } = await supabase
+        .from("assessments")
+        .delete()
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`${selectedCandidates.size} candidates deleted permanently`);
+      setSelectedCandidates(new Set());
+      await loadCandidates();
+    } catch (error) {
+      console.error("Error bulk deleting:", error);
+      toast.error("Failed to delete candidates");
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkTagAssignment = async () => {
+    if (!selectedTagId) {
+      toast.error("Please select a tag first");
+      return;
+    }
+    
+    setBulkActionLoading(true);
+    try {
+      const selectedIds = Array.from(selectedCandidates);
+      
+      // Insert tag associations (ignore duplicates)
+      const tagAssignments = selectedIds.map(assessmentId => ({
+        assessment_id: assessmentId,
+        tag_id: selectedTagId,
+      }));
+
+      const { error } = await supabase
+        .from("assessment_tags")
+        .upsert(tagAssignments, { onConflict: "assessment_id,tag_id", ignoreDuplicates: true });
+
+      if (error) throw error;
+
+      const tagName = availableTags.find(t => t.id === selectedTagId)?.name;
+      toast.success(`Tag "${tagName}" added to ${selectedCandidates.size} candidates`);
+      setSelectedCandidates(new Set());
+      setSelectedTagId("");
+      await loadCandidates();
+    } catch (error) {
+      console.error("Error bulk tag assignment:", error);
+      toast.error("Failed to assign tags");
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkStatusChange = async () => {
+    if (!selectedStatusChange) {
+      toast.error("Please select a status first");
+      return;
+    }
+    
+    setBulkActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("assessments")
+        .update({ review_status: selectedStatusChange })
+        .in("id", Array.from(selectedCandidates));
+
+      if (error) throw error;
+
+      toast.success(`${selectedCandidates.size} candidates marked as ${selectedStatusChange}`);
+      setSelectedCandidates(new Set());
+      setSelectedStatusChange("");
+      await loadCandidates();
+    } catch (error) {
+      console.error("Error bulk status change:", error);
+      toast.error("Failed to change status");
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkReanalyze = async () => {
+    setBulkReanalyzing(true);
+    const selectedIds = Array.from(selectedCandidates);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (let i = 0; i < selectedIds.length; i++) {
+        const assessmentId = selectedIds[i];
+        try {
+          const { error } = await supabase.functions.invoke("analyze-assessment", {
+            body: { assessmentId },
+          });
+
+          if (error) throw error;
+          successCount++;
+          
+          // Update toast with progress
+          toast.loading(`Re-analyzing: ${i + 1}/${selectedIds.length}`, { id: "bulk-reanalyze" });
+        } catch (error) {
+          console.error(`Error re-analyzing ${assessmentId}:`, error);
+          failCount++;
+        }
+      }
+
+      toast.dismiss("bulk-reanalyze");
+      
+      if (successCount > 0) {
+        toast.success(`Re-analyzed ${successCount} candidate${successCount > 1 ? 's' : ''}`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to re-analyze ${failCount} candidate${failCount > 1 ? 's' : ''}`);
+      }
+
+      setSelectedCandidates(new Set());
+      await loadCandidates();
+    } catch (error) {
+      console.error("Error bulk re-analyzing:", error);
+      toast.error("Failed to re-analyze candidates");
+    } finally {
+      setBulkReanalyzing(false);
+    }
+  };
+
+  const handleBulkExport = () => {
+    const selectedIds = Array.from(selectedCandidates);
+    const exportData = candidates
+      .filter(c => selectedIds.includes(c.id))
+      .map(c => ({
+        Name: c.user_name,
+        Email: c.user_email,
+        Status: c.status,
+        "Review Status": c.review_status,
+        "Recommended Role": c.recommended_role || "N/A",
+        Quadrant: c.quadrant || "N/A",
+        Shortlisted: c.is_shortlisted ? "Yes" : "No",
+        "Submitted Date": c.created_at ? format(new Date(c.created_at), "MMM dd, yyyy") : "N/A",
+      }));
+
+    // Convert to CSV
+    const headers = Object.keys(exportData[0] || {});
+    const csvContent = [
+      headers.join(","),
+      ...exportData.map(row => 
+        headers.map(header => {
+          const value = row[header as keyof typeof row];
+          // Escape commas and quotes
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(",")
+      ),
+    ].join("\n");
+
+    // Download file
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `candidates_export_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${selectedCandidates.size} candidates to CSV`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -298,37 +507,124 @@ const AdminCandidates = () => {
       </Card>
 
       {selectedCandidates.size > 0 && (
-        <Card className="border-primary">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-primary" />
-                <span className="font-medium">{selectedCandidates.size} selected</span>
+                <span className="font-semibold">{selectedCandidates.size} selected</span>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleBulkShortlist}
-                  disabled={bulkActionLoading}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Row 1: Primary Actions */}
+                <Button 
+                  onClick={handleBulkShortlist} 
+                  disabled={bulkActionLoading || bulkReanalyzing}
+                  size="sm"
+                  className="w-full"
                 >
-                  {bulkActionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : null}
+                  {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Shortlist
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleBulkReject}
-                  disabled={bulkActionLoading}
+                <Button 
+                  onClick={handleBulkReject} 
+                  disabled={bulkActionLoading || bulkReanalyzing}
+                  variant="destructive"
+                  size="sm"
+                  className="w-full"
                 >
-                  {bulkActionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : null}
+                  {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Reject
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setSelectedCandidates(new Set())}
+                <Button 
+                  onClick={() => setShowDeleteDialog(true)} 
+                  disabled={bulkActionLoading || bulkReanalyzing}
+                  variant="destructive"
+                  size="sm"
+                  className="w-full"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+
+                {/* Row 2: Tag Assignment */}
+                <div className="flex gap-2 col-span-1 md:col-span-2">
+                  <Select value={selectedTagId} onValueChange={setSelectedTagId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select tag..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTags.map(tag => (
+                        <SelectItem key={tag.id} value={tag.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            {tag.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    onClick={handleBulkTagAssignment}
+                    disabled={bulkActionLoading || bulkReanalyzing || !selectedTagId}
+                    size="sm"
+                  >
+                    <Tags className="h-4 w-4 mr-2" />
+                    Add Tag
+                  </Button>
+                </div>
+
+                {/* Row 3: Status Change */}
+                <div className="flex gap-2 col-span-1 md:col-span-2">
+                  <Select value={selectedStatusChange} onValueChange={setSelectedStatusChange}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Change status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">Mark as New</SelectItem>
+                      <SelectItem value="pending_review">Mark as Pending Review</SelectItem>
+                      <SelectItem value="reviewed">Mark as Reviewed</SelectItem>
+                      <SelectItem value="rejected">Mark as Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    onClick={handleBulkStatusChange}
+                    disabled={bulkActionLoading || bulkReanalyzing || !selectedStatusChange}
+                    size="sm"
+                  >
+                    Change Status
+                  </Button>
+                </div>
+
+                {/* Row 4: Additional Actions */}
+                <Button 
+                  onClick={handleBulkReanalyze}
+                  disabled={bulkActionLoading || bulkReanalyzing}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  {bulkReanalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  Re-analyze
+                </Button>
+                <Button 
+                  onClick={handleBulkExport}
+                  disabled={bulkActionLoading || bulkReanalyzing}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+                <Button 
+                  onClick={() => setSelectedCandidates(new Set())} 
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
                 >
                   Clear
                 </Button>
@@ -337,6 +633,24 @@ const AdminCandidates = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedCandidates.size} Candidate{selectedCandidates.size > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected candidates and all their assessment data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card>
         <CardContent className="p-0">
