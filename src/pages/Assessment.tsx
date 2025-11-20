@@ -705,6 +705,41 @@ const Assessment = () => {
       // Automatically fill with the first suggestion
       const firstSuggestion = data.suggestions[0].content;
       
+      // Q2-specific validation: Ensure AI Help suggestions are relevant to Q1 problem
+      if (currentQuestion === 2) {
+        const q1Text = (responses[1]?.partA || '') as string;
+        const lowerSuggestion = firstSuggestion.toLowerCase();
+        const lowerQ1 = q1Text.toLowerCase();
+
+        // Extract key problem keywords from Q1
+        const problemKeywords: string[] = [];
+        
+        // Check for common problem indicators
+        if (lowerQ1.includes('dog')) problemKeywords.push('dog');
+        if (lowerQ1.includes('stray')) problemKeywords.push('stray');
+        if (lowerQ1.includes('street dog')) problemKeywords.push('street dog');
+        if (lowerQ1.includes('waste')) problemKeywords.push('waste');
+        if (lowerQ1.includes('garbage')) problemKeywords.push('garbage');
+        if (lowerQ1.includes('sanitation')) problemKeywords.push('sanitation');
+        if (lowerQ1.includes('urination')) problemKeywords.push('urination');
+        if (lowerQ1.includes('water')) problemKeywords.push('water');
+        if (lowerQ1.includes('pollution')) problemKeywords.push('pollution');
+        if (lowerQ1.includes('child')) problemKeywords.push('child');
+        if (lowerQ1.includes('education')) problemKeywords.push('education');
+        if (lowerQ1.includes('school')) problemKeywords.push('school');
+        
+        // Check if suggestion mentions at least one problem keyword
+        const isRelevant = problemKeywords.length === 0 || 
+                          problemKeywords.some(keyword => lowerSuggestion.includes(keyword));
+
+        if (!isRelevant && problemKeywords.length > 0) {
+          console.warn('Q2 AI Help failed relevance check. Keywords:', problemKeywords);
+          toast.error("AI Help couldn't adapt to your specific problem. Please write in your own words or try again.");
+          setIsAiHelping(false);
+          return;
+        }
+      }
+      
       if (question.type === 'irritation-vertical') {
         setCurrentResponse({ ...currentResponse, partA: firstSuggestion });
       } else if (question.type === 'long-text') {
