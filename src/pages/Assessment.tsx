@@ -574,13 +574,23 @@ const Assessment = () => {
     try {
       await saveResponse();
 
-      await supabase
+      console.log('[Assessment Submit] Updating status to completed for assessment:', id);
+      
+      const { data: updateData, error: updateError } = await supabase
         .from("assessments")
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
         })
         .eq("id", id);
+
+      if (updateError) {
+        console.error('[Assessment Submit] Failed to update status:', updateError);
+        toast.error("Failed to mark assessment as completed. Please try again.");
+        return;
+      }
+
+      console.log('[Assessment Submit] Status updated successfully');
 
       // Trigger analysis in background (don't wait)
       supabase.functions.invoke("analyze-assessment", {
@@ -590,6 +600,7 @@ const Assessment = () => {
       // Navigate to thank you page immediately
       navigate(`/thank-you?id=${id}`);
     } catch (error) {
+      console.error('[Assessment Submit] Error during submission:', error);
       toast.error("Failed to submit assessment");
     } finally {
       setIsSubmitting(false);
