@@ -14,6 +14,7 @@ import {
   UsersRound,
   RefreshCw,
   Sparkles,
+  TestTube2,
 } from "lucide-react";
 import { useRole } from "@/contexts/RoleContext";
 import { hasPermission } from "@/lib/roleHierarchy";
@@ -36,6 +37,7 @@ const navigationItems = [
   { title: "Comparison", url: "/admin/comparison", icon: GitCompare, permission: "view_all_assessments" },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "view_all_assessments" },
   { title: "Adaptive Analytics", url: "/admin/adaptive-analytics", icon: Sparkles, permission: "view_all_assessments" },
+  { title: "Adaptive Test", url: "/admin/adaptive-test", icon: TestTube2, permission: "view_all_assessments" },
   { title: "Validation", url: "/admin/validation", icon: CheckCircle, permission: "view_all_assessments" },
   { title: "Tracking", url: "/admin/tracking", icon: Activity, permission: "view_all_assessments" },
   { title: "Score Comparison", url: "/admin/score-comparison", icon: RefreshCw, permission: "view_all_assessments" },

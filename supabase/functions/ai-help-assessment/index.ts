@@ -314,7 +314,54 @@ Provide a brief explanation (3-4 sentences) helping them understand what each le
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('Lovable AI error:', aiResponse.status, errorText);
-      throw new Error(`Lovable AI request failed: ${aiResponse.status}`);
+      
+      // Handle rate limiting
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({
+            suggestions: questionType === 'radio' 
+              ? "We're experiencing high demand right now. Please try again in a moment, or continue with your own answer - your authentic voice matters most!"
+              : [
+                  { title: "High Demand", content: "We're experiencing high demand. Please continue with your own response - your authentic voice and personal experience are what matter most in this assessment." },
+                  { title: "Rate Limited", content: "AI Help is temporarily unavailable due to high usage. Feel free to craft your own response based on the scenario provided." },
+                  { title: "Continue Independently", content: "While AI assistance is temporarily unavailable, remember that your genuine thoughts and experiences are the most valuable part of this assessment." }
+                ],
+            questionNumber,
+            questionType,
+            error: 'rate_limited',
+            message: 'AI Help temporarily unavailable due to high demand'
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 // Return 200 with graceful degradation
+          }
+        );
+      }
+      
+      // Handle payment required
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({
+            suggestions: questionType === 'radio'
+              ? "AI Help requires additional credits. Please contact support or continue with your own answer."
+              : [
+                  { title: "Credits Required", content: "AI Help requires additional credits. Your own perspective and experiences are equally valuable for this assessment." },
+                  { title: "Manual Response", content: "Please continue by crafting your own response to the scenario. Your authentic voice is what we're looking for." },
+                  { title: "Alternative Approach", content: "Consider drawing from your own experiences and ideas to answer this question independently." }
+                ],
+            questionNumber,
+            questionType,
+            error: 'payment_required',
+            message: 'AI Help requires additional credits'
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+          }
+        );
+      }
+      
+      throw new Error(`Lovable AI request failed: ${aiResponse.status} - ${errorText}`);
     }
 
     const aiData = await aiResponse.json();
@@ -328,7 +375,13 @@ Provide a brief explanation (3-4 sentences) helping them understand what each le
         const args = JSON.parse(toolCall.function.arguments);
         suggestions = args.suggestions;
       } else {
-        throw new Error('No tool call response received');
+        console.warn('No tool call response, using fallback');
+        // Fallback structured suggestions
+        suggestions = [
+          { title: "Fallback Response", content: "AI tool calling failed. Please craft your own response to the question." },
+          { title: "Manual Approach", content: "Draw from your own experiences and ideas to provide an authentic answer." },
+          { title: "Independent Thinking", content: "Your genuine perspective is valuable - proceed with your own thoughts on this scenario." }
+        ];
       }
     }
 
@@ -343,14 +396,40 @@ Provide a brief explanation (3-4 sentences) helping them understand what each le
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in ai-help-assessment:', error);
+    
+    // Provide graceful fallback based on question type
+    const fallbackSuggestions = questionType === 'radio'
+      ? "AI Help encountered an error. Please select the option that best represents your natural leadership style."
+      : [
+          { 
+            title: "Error Occurred", 
+            content: "AI Help encountered an issue. Please continue by crafting your own response based on your experiences and ideas." 
+          },
+          { 
+            title: "Manual Response", 
+            content: "While AI assistance is unavailable, your authentic voice and personal perspective are what truly matter in this assessment." 
+          },
+          { 
+            title: "Independent Approach", 
+            content: "Draw from your own experiences to provide a genuine, thoughtful response to the scenario presented." 
+          }
+        ];
+    
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Internal server error',
-        fallback: 'Unable to generate AI suggestions at this time. Please continue writing based on your own thoughts and experiences.'
+      JSON.stringify({
+        suggestions: fallbackSuggestions,
+        questionNumber: questionNumber,
+        questionType: questionType,
+        error: 'internal_error',
+        message: error.message || 'An unexpected error occurred',
+        fallback: true
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 // Return 200 for graceful degradation
+      }
     );
   }
 });
