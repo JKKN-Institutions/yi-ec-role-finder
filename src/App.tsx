@@ -17,6 +17,7 @@ import AccessDenied from "./pages/AccessDenied";
 import Admin from "./pages/Admin";
 import CandidateProfile from "./pages/CandidateProfile";
 import AdminScoreComparison from "./pages/AdminScoreComparison";
+import AdminAdaptiveAnalytics from "./pages/AdminAdaptiveAnalytics";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/admin/verticals" element={<Admin />} />
             <Route path="/admin/roles" element={<Admin />} />
             <Route path="/admin/activity-log" element={<Admin />} />
+            <Route path="/admin/adaptive-analytics" element={<AdminAdaptiveAnalytics />} />
             <Route path="/admin/score-comparison" element={<AdminScoreComparison />} />
             <Route path="/admin/super-dashboard" element={<SuperAdminDashboard />} />
             <Route path="/admin/candidate/:assessmentId" element={<CandidateProfile />} />

@@ -333,6 +333,10 @@ const Assessment = () => {
     }
 
     setIsAdaptingQuestion(true);
+    const adaptationStartTime = Date.now();
+    let adaptationSuccess = false;
+    let fallbackUsed = false;
+    
     try {
       const q1Response = responses[1];
       const q2Response = responses[2];
@@ -341,6 +345,7 @@ const Assessment = () => {
       if (questionNumber === 2) {
         if (!q1Response || !q1Response.partA) {
           console.log('Q1 responses not available, using default Q2');
+          fallbackUsed = true;
           return;
         }
 
@@ -375,6 +380,7 @@ const Assessment = () => {
             }
           }));
           toast.success('Question personalized based on your Q1 response');
+          adaptationSuccess = true;
         }
       }
       
@@ -382,6 +388,7 @@ const Assessment = () => {
       if (questionNumber === 3) {
         if (!q1Response || !q1Response.partA || !q2Response || !q2Response.response) {
           console.log('Q1/Q2 responses not available, using default Q3');
+          fallbackUsed = true;
           return;
         }
 
@@ -417,6 +424,7 @@ const Assessment = () => {
             }
           }));
           toast.success('Question personalized based on your initiative design');
+          adaptationSuccess = true;
         }
       }
       
@@ -424,6 +432,7 @@ const Assessment = () => {
       if (questionNumber === 4) {
         if (!q1Response || !q1Response.partA || !q2Response || !q2Response.response) {
           console.log('Q1/Q2 responses not available, using default Q4');
+          fallbackUsed = true;
           return;
         }
 
@@ -459,6 +468,7 @@ const Assessment = () => {
             }
           }));
           toast.success('Question personalized to focus on relevant skills');
+          adaptationSuccess = true;
         }
       }
       
@@ -466,6 +476,7 @@ const Assessment = () => {
       if (questionNumber === 5) {
         if (!q2Response || !q2Response.response) {
           console.log('Q2 response not available, using default Q5');
+          fallbackUsed = true;
           return;
         }
 
@@ -489,13 +500,33 @@ const Assessment = () => {
             }
           }));
           toast.success('Leadership scenario personalized to your initiative');
+          adaptationSuccess = true;
         }
       }
     } catch (error) {
       console.error('Failed to adapt question:', error);
+      fallbackUsed = true;
       // Silently fall back to default question
     } finally {
       setIsAdaptingQuestion(false);
+      
+      // Track adaptation analytics
+      if (id) {
+        const adaptationTimeMs = Date.now() - adaptationStartTime;
+        try {
+          await supabase.from("adaptation_analytics").upsert({
+            assessment_id: id,
+            question_number: questionNumber,
+            was_adapted: adaptationSuccess,
+            adaptation_success: adaptationSuccess,
+            fallback_used: fallbackUsed,
+            adaptation_time_ms: adaptationTimeMs,
+            response_completed: false,
+          });
+        } catch (err) {
+          console.error('Failed to track adaptation analytics:', err);
+        }
+      }
     }
   };
 
@@ -678,6 +709,28 @@ const Assessment = () => {
         setCurrentResponse({ ...currentResponse, partA: firstSuggestion });
       } else if (question.type === 'long-text') {
         setCurrentResponse({ ...currentResponse, response: firstSuggestion });
+      }
+      
+      // Track that AI help was used for this question
+      setAiHelpUsedForQuestion(prev => ({
+        ...prev,
+        [currentQuestion]: true
+      }));
+      
+      // Track AI Help usage in analytics
+      if (id) {
+        try {
+          await supabase.from("adaptation_analytics").upsert({
+            assessment_id: id,
+            question_number: currentQuestion,
+            ai_help_used: true,
+            ai_help_accepted: true,
+            was_adapted: !!adaptedQuestions[currentQuestion],
+            response_completed: false,
+          });
+        } catch (err) {
+          console.error('Failed to track AI help analytics:', err);
+        }
       }
       
       toast.success('Form filled with AI suggestion! Feel free to edit it.');
