@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const ThankYou = () => {
   const [searchParams] = useSearchParams();
@@ -15,6 +16,35 @@ const ThankYou = () => {
       return;
     }
     setShowSuccess(true);
+
+    // STEP 5: Fallback check - ensure assessment is marked completed
+    // This catches cases where client-side update failed
+    const ensureCompleted = async () => {
+      try {
+        const { data: assessment } = await supabase
+          .from("assessments")
+          .select("status")
+          .eq("id", assessmentId)
+          .single();
+
+        if (assessment && assessment.status !== "completed") {
+          console.log("[ThankYou] Assessment not marked completed, updating...");
+          await supabase
+            .from("assessments")
+            .update({
+              status: "completed",
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", assessmentId);
+          console.log("[ThankYou] Status updated to completed");
+        }
+      } catch (error) {
+        console.error("[ThankYou] Error checking/updating status:", error);
+        // Don't show error to user - they've already submitted successfully
+      }
+    };
+
+    ensureCompleted();
   }, [assessmentId, navigate]);
 
   return (
