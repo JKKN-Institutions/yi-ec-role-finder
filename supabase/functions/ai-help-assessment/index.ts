@@ -11,17 +11,25 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Declare at function scope so they're accessible in catch block
+  let questionNumber: number | undefined;
+  let questionType: string | undefined;
+
   try {
     const { 
-      questionNumber, 
+      questionNumber: qNum, 
       questionTitle, 
-      questionType, 
+      questionType: qType, 
       currentText, 
       scenario,
       adaptedQuestionText,
       adaptationContext,
       previousResponses 
     } = await req.json();
+
+    // Assign to function-scope variables
+    questionNumber = qNum;
+    questionType = qType;
 
     if (!questionNumber || !questionTitle || !questionType) {
       return new Response(
