@@ -24,6 +24,7 @@ import { TestDataCleanup } from "./TestDataCleanup";
 import { AnalyticsWidget } from "./AnalyticsWidget";
 import { CreateDemoAssessment } from "./CreateDemoAssessment";
 import { StuckAssessmentsWidget } from "./StuckAssessmentsWidget";
+import { NotesActivityFeed } from "./NotesActivityFeed";
 
 interface Stats {
   totalAssessments: number;
@@ -471,6 +472,9 @@ export function AdminOverview() {
 
       {/* Assessment Health Monitor */}
       <StuckAssessmentsWidget />
+
+      {/* Notes Activity Feed */}
+      <NotesActivityFeed />
 
       {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2">
