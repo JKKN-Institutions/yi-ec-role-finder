@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Trash2, FileText } from "lucide-react";
+import { Loader2, Trash2, FileText, Pencil, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -47,6 +47,8 @@ export const CandidateNotes = ({ assessmentId, candidateName }: CandidateNotesPr
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [open, setOpen] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editedNoteText, setEditedNoteText] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -139,6 +141,51 @@ export const CandidateNotes = ({ assessmentId, candidateName }: CandidateNotesPr
     }
   };
 
+  const startEditingNote = (noteId: string, currentText: string) => {
+    setEditingNoteId(noteId);
+    setEditedNoteText(currentText);
+  };
+
+  const cancelEditingNote = () => {
+    setEditingNoteId(null);
+    setEditedNoteText("");
+  };
+
+  const handleUpdateNote = async (noteId: string) => {
+    if (!editedNoteText.trim()) {
+      toast.error("Note cannot be empty");
+      return;
+    }
+
+    if (editedNoteText.length > 2000) {
+      toast.error("Note must be less than 2000 characters");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("candidate_notes")
+        .update({ 
+          note_text: editedNoteText.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", noteId);
+
+      if (error) throw error;
+
+      toast.success("Note updated successfully");
+      setEditingNoteId(null);
+      setEditedNoteText("");
+      await loadNotes();
+    } catch (error) {
+      console.error("Error updating note:", error);
+      toast.error("Failed to update note");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -211,27 +258,100 @@ export const CandidateNotes = ({ assessmentId, candidateName }: CandidateNotesPr
                 notes.map((note) => (
                   <Card key={note.id}>
                     <CardContent className="pt-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 space-y-2">
+                      {editingNoteId === note.id ? (
+                        // Edit mode
+                        <div className="space-y-3">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span className="font-medium">{note.created_by_email}</span>
                             <span>•</span>
                             <span>{format(new Date(note.created_at), "MMM dd, yyyy 'at' h:mm a")}</span>
+                            {note.updated_at !== note.created_at && (
+                              <>
+                                <span>•</span>
+                                <span className="text-xs italic">Edited</span>
+                              </>
+                            )}
                           </div>
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {note.note_text}
-                          </p>
+                          <Textarea
+                            value={editedNoteText}
+                            onChange={(e) => setEditedNoteText(e.target.value)}
+                            rows={4}
+                            maxLength={2000}
+                            className="resize-none"
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              {editedNoteText.length}/2000 characters
+                            </span>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={cancelEditingNote}
+                                disabled={saving}
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateNote(note.id)}
+                                disabled={saving || !editedNoteText.trim()}
+                              >
+                                {saving ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="h-4 w-4 mr-2" />
+                                    Save
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        {currentUserId === note.created_by && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeleteNoteId(note.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
+                      ) : (
+                        // View mode
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span className="font-medium">{note.created_by_email}</span>
+                              <span>•</span>
+                              <span>{format(new Date(note.created_at), "MMM dd, yyyy 'at' h:mm a")}</span>
+                              {note.updated_at !== note.created_at && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-xs italic">Edited</span>
+                                </>
+                              )}
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {note.note_text}
+                            </p>
+                          </div>
+                          {currentUserId === note.created_by && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditingNote(note.id, note.note_text)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeleteNoteId(note.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))
