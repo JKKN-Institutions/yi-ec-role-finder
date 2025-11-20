@@ -69,7 +69,7 @@ const questionDefinitions = [
     type: "long-text",
     scenario: "It's Saturday, 6 PM. You're relaxing with family when your vertical head calls: 'We need urgent help preparing for tomorrow's major event. Can you come to the office now for 3-4 hours?' What's your honest response?",
     placeholder: "Describe exactly what you'd say and do...",
-    minChars: 50,
+    minChars: 10,
     maxChars: 500,
   },
     {
@@ -319,7 +319,7 @@ const Assessment = () => {
         } : null,
       });
 
-      setResponses({ ...responses, [currentQuestion]: currentResponse });
+      setResponses(prev => ({ ...prev, [currentQuestion]: currentResponse }));
     } catch (error) {
       console.error('Failed to save response:', error);
       toast.error("Failed to save response");

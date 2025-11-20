@@ -64,29 +64,47 @@ Generate 3 complete, different example responses covering different community pr
         const verticals = previousResponses?.q1_verticals || [];
         const hasContext = previousResponses?.q1_part_a && verticals.length > 0;
         
+        // Debug logging to verify context is received
+        console.log('Q2 AI Help Context:', {
+          hasProblemContext: !!problemContext && problemContext !== 'a community problem',
+          problemLength: problemContext?.length || 0,
+          hasVerticals: verticals.length > 0,
+          verticals: verticals,
+          problemPreview: problemContext?.substring(0, 100)
+        });
+        
         if (hasContext) {
           systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
-The candidate described this problem: "${problemContext.substring(0, 200)}..."
-They selected these focus areas: ${verticals.join(', ')}
 
-Generate 3 complete initiative design examples specifically addressing THEIR problem.
-Each response should:
-1. Directly address the problem they described
-2. Align with their selected verticals
-3. Include clear, measurable objectives for reaching 10,000+ people
-4. Plan concrete activities within ₹50,000 and 6 months
-5. Explain expected change/impact
+The candidate wrote about this specific problem:
+"${problemContext.substring(0, 300)}"
 
-Make each example DIFFERENT approaches to solving THEIR specific problem.
-Each response should be approximately 500 characters (50% of limit) and feel personally relevant.`;
+They selected these focus verticals: ${verticals.join(', ')}
 
-          userPrompt = `Their Problem: "${problemContext}"
-Selected Verticals: ${verticals.join(', ')}
-Adapted Scenario: ${adaptedQuestionText || scenario}
+Generate 3 initiative design examples that DIRECTLY respond to THEIR EXACT PROBLEM above.
 
-Current text (${currentText?.length || 0} characters): ${currentText || 'Nothing written yet'}
+CRITICAL: Each response MUST:
+1. Start by referencing their specific problem in the first sentence (e.g., "To address [their problem]...")
+2. Propose a concrete initiative that solves THEIR problem (not a generic one)
+3. Align with their selected verticals: ${verticals.join(', ')}
+4. Include measurable objectives for reaching 10,000+ people
+5. Plan activities within ₹50,000 budget and 6-month timeline
+6. Explain the expected change/impact specific to THEIR problem context
 
-Generate 3 initiative examples specifically for THEIR problem, not generic examples.`;
+Make each example take a DIFFERENT approach to solving THE SAME PROBLEM they described.
+Each response should be approximately 500 characters and feel personally crafted for THEIR situation.`;
+
+          userPrompt = `CANDIDATE'S SPECIFIC PROBLEM (from Q1):
+"${problemContext.substring(0, 400)}"
+
+Selected Focus Areas: ${verticals.join(', ')}
+
+The adapted Q2 scenario asks: ${adaptedQuestionText || scenario}
+
+Current draft (${currentText?.length || 0} chars): ${currentText || 'Nothing written yet'}
+
+Generate 3 initiative designs that solve THIS SPECIFIC PROBLEM (not generic issues).
+Each suggestion must reference their exact problem in the opening sentence.`;
         } else {
           systemPrompt = `You are a helpful writing assistant for Yi Erode leadership assessment.
 Generate 3 complete, practical initiative design examples that candidates can choose from.
