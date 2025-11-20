@@ -151,11 +151,26 @@ async function adaptQ2(
       messages: [
         {
           role: 'system',
-          content: 'You are an expert at extracting concise summaries. Extract a 2-5 word summary of the main problem described in the text. Be specific and use the exact terminology from the text.'
+          content: `You help make assessment questions personal for Yi Erode candidates. Keep it fair and the same for everyone.
+
+The person wrote about this problem (Q1):
+"${problemText.substring(0, 400)}"
+
+Write a short problem summary in 2-5 words that shows the main issue.
+For example:
+- "street dogs attacking children" → "street dog problem"
+- "garbage piling up in markets" → "waste problem"
+- "youth lacking opportunities" → "youth jobs"
+
+IMPORTANT: Only write the 2-5 word summary, nothing else.`
         },
         {
           role: 'user',
-          content: `Extract a 2-5 word problem summary from this text:\n\n"${problemText}"\n\nRespond with ONLY the 2-5 word summary, nothing else. Examples: "waste management issues", "lack of youth programs", "poor road conditions", "education quality gaps".`
+          content: `Extract a 2-5 word problem summary from this text:
+
+"${problemText}"
+
+Respond with ONLY the 2-5 word summary, nothing else. Examples: "waste problem", "no youth programs", "bad roads", "school quality".`
         }
       ],
       temperature: 0.3,
@@ -189,26 +204,26 @@ async function adaptQ2(
       messages: [
         {
           role: 'system',
-          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized questions that reference their responses while maintaining assessment integrity and constraints.'
+          content: 'You help make assessment questions personal for Yi Erode candidates. Make questions that use their answers but keep the test fair.'
         },
         {
           role: 'user',
           content: `Original Q2: "${defaultQ2}"
 
-Candidate's problem (from Q1): "${problemText.substring(0, 500)}"
-Problem summary (2-5 words): "${problemSummary}"
-Selected verticals: ${verticalsText}
+Person's problem (from Q1): "${problemText.substring(0, 200)}"
+Problem in short (2-5 words): "${problemSummary}"
+Areas they picked: ${verticalsText}
 
-Generate an adapted Q2 that:
-1. Opens by acknowledging their specific problem using the summary (e.g., "You described being irritated by ${problemSummary}...")
-2. Mentions they selected these verticals: ${verticalsText}
-3. Maintains the exact constraints: 6 months and ₹50,000
+Make a new Q2 that:
+1. Starts by talking about their problem using the short version (like "You said you care about [summary]...")
+2. Says they picked these areas: ${verticalsText}
+3. Keeps the same rules: 6 months and ₹50,000
 4. Asks how they would reach 10,000+ people
-5. Ends with asking about lasting change
-6. Keep it conversational and encouraging
-7. Total length should be 150-200 words
+5. Ends by asking what change they would make
+6. Sound friendly and helpful
+7. Be 150-200 words long
 
-Respond with ONLY the adapted question text, nothing else.`
+Write ONLY the new question, nothing else.`
         }
       ],
       temperature: 0.5,
@@ -258,11 +273,23 @@ async function adaptQ3(
       messages: [
         {
           role: 'system',
-          content: 'You are an expert at extracting concise initiative summaries. Extract a 3-7 word summary that captures the core activity or campaign name.'
+          content: 'You help make Q3 personal for Yi Erode candidates. Keep it fair for everyone.'
         },
         {
           role: 'user',
-          content: `Extract a 3-7 word initiative summary from this text:\n\n"${initiativeText.substring(0, 600)}"\n\nRespond with ONLY the 3-7 word summary, nothing else. Examples: "community waste segregation campaign", "youth skills training program", "neighborhood cleanliness drive", "digital literacy workshops for students".`
+          content: `The person's Q2 plan:
+"${initiativeText.substring(0, 300)}"
+
+The person's Q1 problem:
+"${problemText.substring(0, 200)}"
+
+Write a short 3-6 word summary of their PLAN (what they're doing, not the problem).
+For example:
+- "awareness campaign about street dog safety" → "street dog safety campaign"
+- "waste segregation training for vendors" → "waste training program"
+- "youth skill development workshops" → "youth skills workshops"
+
+IMPORTANT: Only write the 3-6 word plan summary, nothing else.`
         }
       ],
       temperature: 0.3,
@@ -291,11 +318,11 @@ async function adaptQ3(
       messages: [
         {
           role: 'system',
-          content: 'Extract a 2-5 word problem summary.'
+          content: 'Get a short problem summary.'
         },
         {
           role: 'user',
-          content: `Extract a 2-5 word problem summary: "${problemText.substring(0, 300)}"`
+          content: `Get a 2-5 word problem summary: "${problemText.substring(0, 300)}"`
         }
       ],
       temperature: 0.3,
@@ -396,18 +423,18 @@ async function adaptQ4(
       messages: [
         {
           role: 'system',
-          content: 'You are an expert at identifying work domains and skill areas. Extract 2-4 relevant domains/skill areas that would be most relevant for demonstrating past achievements.'
+          content: 'You help find what areas people care about. Find their interest areas.'
         },
         {
           role: 'user',
           content: `Based on this problem: "${problemText.substring(0, 400)}"
-And this initiative: "${initiativeText.substring(0, 400)}"
+And this plan: "${initiativeText.substring(0, 400)}"
 
-What 2-4 domains or skill areas would be most relevant for this person to highlight in past achievements? 
+What 2-3 areas would fit this person? 
 
-Examples: "community organizing", "environmental action", "youth engagement", "digital literacy", "health awareness", "infrastructure advocacy", "education programs"
+Pick from: community health, schools, environment, youth help, roads, garbage, safety, social help, skills training, speaking up
 
-Respond with ONLY a comma-separated list of 2-4 domains, nothing else.`
+Write ONLY a list with commas, nothing else.`
         }
       ],
       temperature: 0.3,
@@ -436,11 +463,11 @@ Respond with ONLY a comma-separated list of 2-4 domains, nothing else.`
       messages: [
         {
           role: 'system',
-          content: 'Extract a 2-5 word problem summary.'
+          content: 'Get a short problem summary.'
         },
         {
           role: 'user',
-          content: `Extract a 2-5 word problem summary: "${problemText.substring(0, 300)}"`
+          content: `Get a 2-5 word problem summary: "${problemText.substring(0, 300)}"`
         }
       ],
       temperature: 0.3,
@@ -537,11 +564,22 @@ async function adaptQ5(
       messages: [
         {
           role: 'system',
-          content: 'You are an expert at extracting concise initiative summaries.'
+          content: 'You help make Q5 personal. Keep it short.'
         },
         {
           role: 'user',
-          content: `Extract a 3-7 word initiative summary from this text:\n\n"${initiativeText.substring(0, 600)}"\n\nRespond with ONLY the 3-7 word summary, nothing else. Examples: "community waste segregation campaign", "youth skills training program", "digital literacy workshops".`
+          content: `The person's Q2 plan:
+"${initiativeText.substring(0, 250)}"
+
+Write a 4-7 word summary of their plan that fits into:
+"Your [SUMMARY] team misses an important deadline."
+
+For example:
+- "awareness campaign" → "street dog safety campaign"
+- "training program" → "waste management training"
+- "workshop series" → "youth skills workshop"
+
+IMPORTANT: Only write the 4-7 word summary that fits the sentence, nothing else.`
         }
       ],
       temperature: 0.3,
@@ -610,28 +648,23 @@ Respond with ONLY the deliverable phrase (3-8 words), nothing else.`
       messages: [
         {
           role: 'system',
-          content: 'You are adapting assessment questions for Yi Erode leadership candidates. Create personalized scenarios that test their leadership instincts in a realistic context.'
+          content: 'You help make Q5 personal. Keep it short and direct.'
         },
         {
           role: 'user',
           content: `Original Q5: "${defaultQ5}"
 
-Context:
-- Their initiative: ${initiativeSummary}
-- Specific missed deliverable: ${specificDeliverable}
+Person's plan: ${initiativeSummary}
+What they missed: ${specificDeliverable}
 
-Generate an adapted Q5 scenario that:
-1. States that their team working on the "${initiativeSummary}" missed a deadline
-2. Specifies what was missed: "${specificDeliverable}"
-3. Adds realistic urgency (e.g., "The public launch is in 3 days" or similar deadline pressure)
-4. Ends with "What's your first instinct?"
-5. Keep it concise: 2-3 sentences maximum
-6. Make it feel specific and realistic to their initiative
+Make a new Q5 that:
+1. Says the team working on "${initiativeSummary}" missed "${specificDeliverable}"
+2. Makes it urgent and real
+3. Ends with "What do you do first?"
+4. Keep it short: 2-3 sentences max
+5. Be 30-50 words
 
-Example structure:
-"Your team working on the ${initiativeSummary} misses the deadline for ${specificDeliverable}. The public launch is in 3 days, and you need this completed to move forward. What's your first instinct?"
-
-Respond with ONLY the adapted scenario text, nothing else.`
+Write ONLY the new question, nothing else.`
         }
       ],
       temperature: 0.5,
