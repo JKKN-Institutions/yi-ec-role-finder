@@ -163,9 +163,10 @@ export const AdaptiveFlowTester = () => {
 
       // Check if suggestions reference the specific problem
       const firstSuggestion = aiHelpData.suggestions[0];
-      const referencesStreetDogs = firstSuggestion.toLowerCase().includes('street dog') || 
-                                   firstSuggestion.toLowerCase().includes('dog') ||
-                                   firstSuggestion.toLowerCase().includes('stray');
+      const suggestionText = firstSuggestion.content.toLowerCase();
+      const referencesStreetDogs = suggestionText.includes('street dog') || 
+                                   suggestionText.includes('dog') ||
+                                   suggestionText.includes('stray');
       
       if (!referencesStreetDogs) {
         updateStep(4, 'error', 'AI Help suggestions do NOT reference the specific street dog problem!');
