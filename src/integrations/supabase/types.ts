@@ -427,6 +427,44 @@ export type Database = {
           },
         ]
       }
+      candidate_notes: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          created_by: string
+          created_by_email: string
+          id: string
+          note_text: string
+          updated_at: string
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          created_by: string
+          created_by_email: string
+          id?: string
+          note_text: string
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          created_by?: string
+          created_by_email?: string
+          id?: string
+          note_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_notes_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_tags: {
         Row: {
           category: string

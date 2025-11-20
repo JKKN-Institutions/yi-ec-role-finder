@@ -10,6 +10,7 @@ import { Loader2, Search, Eye, Filter, RefreshCw, TrendingUp, CheckSquare, Squar
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CandidateTagManager } from "@/components/admin/CandidateTagManager";
+import { CandidateNotes } from "@/components/admin/CandidateNotes";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
@@ -744,6 +745,10 @@ const AdminCandidates = () => {
                             )}
                           </Button>
                         )}
+                        <CandidateNotes 
+                          assessmentId={candidate.id}
+                          candidateName={candidate.user_name}
+                        />
                         <Button
                           variant="ghost"
                           size="sm"
