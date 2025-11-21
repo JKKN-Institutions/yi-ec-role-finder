@@ -54,6 +54,8 @@ const AdminCandidates = () => {
   const [selectedTagId, setSelectedTagId] = useState<string>("");
   const [selectedStatusChange, setSelectedStatusChange] = useState<string>("");
   const [bulkReanalyzing, setBulkReanalyzing] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"summary" | "full">("summary");
+  const [exportingAll, setExportingAll] = useState(false);
 
   useEffect(() => {
     // Apply URL params on mount
@@ -383,46 +385,202 @@ const AdminCandidates = () => {
     }
   };
 
-  const handleBulkExport = () => {
+  const handleBulkExport = async () => {
     const selectedIds = Array.from(selectedCandidates);
-    const exportData = candidates
-      .filter(c => selectedIds.includes(c.id))
-      .map(c => ({
-        Name: c.user_name,
-        Email: c.user_email,
-        Status: c.status,
-        "Review Status": c.review_status,
-        "Recommended Role": c.recommended_role || "N/A",
-        Quadrant: c.quadrant || "N/A",
-        Shortlisted: c.is_shortlisted ? "Yes" : "No",
-        "Submitted Date": c.created_at ? format(new Date(c.created_at), "MMM dd, yyyy") : "N/A",
-      }));
+    
+    if (exportFormat === "summary") {
+      // Original summary export
+      const exportData = candidates
+        .filter(c => selectedIds.includes(c.id))
+        .map(c => ({
+          Name: c.user_name,
+          Email: c.user_email,
+          Status: c.status,
+          "Review Status": c.review_status,
+          "Recommended Role": c.recommended_role || "N/A",
+          Quadrant: c.quadrant || "N/A",
+          Shortlisted: c.is_shortlisted ? "Yes" : "No",
+          "Submitted Date": c.created_at ? format(new Date(c.created_at), "MMM dd, yyyy") : "N/A",
+        }));
 
-    // Convert to CSV
-    const headers = Object.keys(exportData[0] || {});
+      downloadCSV(exportData, `candidates_export_${format(new Date(), "yyyy-MM-dd_HHmmss")}.csv`);
+      toast.success(`Exported ${selectedCandidates.size} candidates (Summary)`);
+    } else {
+      // Full responses export
+      setBulkActionLoading(true);
+      toast.loading("Fetching full response data...");
+      
+      try {
+        const fullData = await fetchFullResponseData(selectedIds);
+        downloadCSV(fullData, `yi_erode_full_responses_${format(new Date(), "yyyy-MM-dd_HHmmss")}.csv`);
+        toast.dismiss();
+        toast.success(`Exported ${selectedCandidates.size} candidates with full responses`);
+      } catch (error) {
+        console.error("Error exporting full responses:", error);
+        toast.dismiss();
+        toast.error("Failed to export full responses");
+      } finally {
+        setBulkActionLoading(false);
+      }
+    }
+  };
+
+  const handleExportAllResponses = async () => {
+    setExportingAll(true);
+    toast.loading(`Fetching all ${candidates.length} candidate responses...`);
+    
+    try {
+      const allIds = candidates.map(c => c.id);
+      const fullData = await fetchFullResponseData(allIds);
+      downloadCSV(fullData, `yi_erode_all_responses_${format(new Date(), "yyyy-MM-dd_HHmmss")}.csv`);
+      toast.dismiss();
+      toast.success(`Exported all ${candidates.length} candidates with full responses`);
+    } catch (error) {
+      console.error("Error exporting all responses:", error);
+      toast.dismiss();
+      toast.error("Failed to export all responses");
+    } finally {
+      setExportingAll(false);
+    }
+  };
+
+  const fetchFullResponseData = async (assessmentIds: string[]) => {
+    // Fetch comprehensive data for selected assessments
+    const { data: assessments, error } = await supabase
+      .from("assessments")
+      .select(`
+        *,
+        assessment_results(*),
+        assessment_responses(*),
+        adaptation_analytics(*),
+        candidate_notes(note_text, created_by_email, created_at),
+        assessment_tags(candidate_tags(name))
+      `)
+      .in("id", assessmentIds)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    // Process and format data
+    return assessments?.map((assessment: any) => {
+      const results = assessment.assessment_results?.[0] || {};
+      const responses = assessment.assessment_responses || [];
+      const analytics = assessment.adaptation_analytics || [];
+      const notes = assessment.candidate_notes || [];
+      const tags = assessment.assessment_tags?.map((at: any) => at.candidate_tags?.name).filter(Boolean) || [];
+
+      // Extract responses by question number
+      const getResponse = (qNum: number) => responses.find((r: any) => r.question_number === qNum);
+      const q1 = getResponse(1);
+      const q2 = getResponse(2);
+      const q3 = getResponse(3);
+      const q4 = getResponse(4);
+      const q5 = getResponse(5);
+
+      // Calculate AI help metrics
+      const aiHelpUsed = analytics.filter((a: any) => a.ai_help_used).length;
+      const aiHelpAccepted = analytics.filter((a: any) => a.ai_help_accepted).length;
+      const adaptationSuccess = analytics.filter((a: any) => a.adaptation_success).length;
+      const fallbackUsed = analytics.filter((a: any) => a.fallback_used).length;
+
+      // Format notes
+      const formattedNotes = notes.map((n: any) => 
+        `[${format(new Date(n.created_at), "MMM dd, yyyy")} - ${n.created_by_email}]: ${n.note_text}`
+      ).join(" | ");
+
+      const escapeCSV = (text: any) => {
+        if (!text) return "N/A";
+        return String(text).replace(/\n/g, " ").replace(/\r/g, "").substring(0, 5000);
+      };
+
+      return {
+        "Candidate Name": assessment.user_name,
+        "Email": assessment.user_email,
+        "Assessment ID": assessment.id,
+        "Submitted Date": assessment.created_at ? format(new Date(assessment.created_at), "MMM dd, yyyy HH:mm") : "N/A",
+        "Status": assessment.status,
+        "Review Status": assessment.review_status,
+        "Shortlisted": assessment.is_shortlisted ? "Yes" : "No",
+        
+        // Scoring
+        "WILL Score": results.will_score || "N/A",
+        "SKILL Score": results.skill_score || "N/A",
+        "Personal Ownership Score": results.personal_ownership_score || "N/A",
+        "Impact Readiness Score": results.impact_readiness_score || "N/A",
+        "Execution Capability Score": results.execution_capability_score || "N/A",
+        "Recommended Role": results.recommended_role || "N/A",
+        "Quadrant": results.quadrant || "N/A",
+        "Leadership Style": results.leadership_style || "N/A",
+        
+        // Q1 - Problem Identification
+        "Q1 Problem Description": escapeCSV(q1?.response_data?.partA),
+        "Q1 Priority 1": q1?.response_data?.priority1 || "N/A",
+        "Q1 Priority 2": q1?.response_data?.priority2 || "N/A",
+        "Q1 Priority 3": q1?.response_data?.priority3 || "N/A",
+        
+        // Q2 - Initiative Design
+        "Q2 Original Question": "Yi Erode gives you 6 months and ₹50,000 to fix the problem from Q1...",
+        "Q2 Adapted Question": escapeCSV(q2?.adapted_question_text) || "N/A",
+        "Q2 Response": escapeCSV(q2?.response_data?.text),
+        
+        // Q3 - Saturday Crisis
+        "Q3 Original Question": "It's Saturday, 6 PM. You're with family. Your team leader calls...",
+        "Q3 Adapted Question": escapeCSV(q3?.adapted_question_text) || "N/A",
+        "Q3 Response": escapeCSV(q3?.response_data?.text),
+        
+        // Q4 - 2026 Goal
+        "Q4 Original Question": "What do you want to do in Yi Erode 2026 that would make you really proud?",
+        "Q4 Adapted Question": escapeCSV(q4?.adapted_question_text) || "N/A",
+        "Q4 Response": escapeCSV(q4?.response_data?.text),
+        
+        // Q5 - Leadership Style
+        "Q5 Original Question": "Your team misses an important deadline. What do you do first?",
+        "Q5 Adapted Question": escapeCSV(q5?.adapted_question_text) || "N/A",
+        "Q5 Response": q5?.response_data?.selectedOption || "N/A",
+        
+        // Analytics
+        "AI Help Used Count": aiHelpUsed,
+        "AI Help Accepted Count": aiHelpAccepted,
+        "Adaptation Success Count": adaptationSuccess,
+        "Fallback Used Count": fallbackUsed,
+        
+        // Admin Data
+        "Admin Notes": escapeCSV(formattedNotes) || "N/A",
+        "Tags": tags.join("; ") || "N/A",
+      };
+    }) || [];
+  };
+
+  const downloadCSV = (data: any[], filename: string) => {
+    if (data.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+
+    // Convert to CSV with UTF-8 BOM for Excel compatibility
+    const headers = Object.keys(data[0]);
     const csvContent = [
       headers.join(","),
-      ...exportData.map(row => 
+      ...data.map(row => 
         headers.map(header => {
-          const value = row[header as keyof typeof row];
-          // Escape commas and quotes
+          const value = row[header];
+          // Escape commas, quotes, and newlines
           return `"${String(value).replace(/"/g, '""')}"`;
         }).join(",")
       ),
     ].join("\n");
 
-    // Download file
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    // Add UTF-8 BOM
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `candidates_export_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-
-    toast.success(`Exported ${selectedCandidates.size} candidates to CSV`);
   };
 
   if (loading) {
@@ -441,6 +599,18 @@ const AdminCandidates = () => {
           <p className="text-muted-foreground">View and manage all assessment candidates</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            onClick={handleExportAllResponses}
+            disabled={exportingAll || candidates.length === 0}
+            variant="outline"
+          >
+            {exportingAll ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            Export All Responses
+          </Button>
           <Button onClick={() => navigate("/admin/score-comparison")} variant="outline">
             <TrendingUp className="h-4 w-4 mr-2" />
             Score Comparison
@@ -600,7 +770,28 @@ const AdminCandidates = () => {
                   </Button>
                 </div>
 
-                {/* Row 4: Additional Actions */}
+                {/* Row 4: Export & Additional Actions */}
+                <div className="flex gap-2 col-span-1 md:col-span-2">
+                  <Select value={exportFormat} onValueChange={(value: "summary" | "full") => setExportFormat(value)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="summary">Export Format: Summary Only</SelectItem>
+                      <SelectItem value="full">Export Format: Full Responses</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    onClick={handleBulkExport}
+                    disabled={bulkActionLoading || bulkReanalyzing}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </div>
+                
                 <Button 
                   onClick={handleBulkReanalyze}
                   disabled={bulkActionLoading || bulkReanalyzing}
@@ -611,16 +802,7 @@ const AdminCandidates = () => {
                   {bulkReanalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                   Re-analyze
                 </Button>
-                <Button 
-                  onClick={handleBulkExport}
-                  disabled={bulkActionLoading || bulkReanalyzing}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
+                
                 <Button 
                   onClick={() => setSelectedCandidates(new Set())} 
                   variant="outline"
