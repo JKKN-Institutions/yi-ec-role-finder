@@ -574,26 +574,34 @@ const Assessment = () => {
     try {
       await saveResponse();
 
-      // STEP 2: Optimistic client-side update (for immediate UI feedback)
-      // Note: This may fail due to network/browser issues, so we have server-side
-      // backup in analyze-assessment edge function and ThankYou page fallback
-      console.log('[Assessment Submit] Updating status to completed for assessment:', id);
+      // STEP 2: Best-effort client-side status update (non-blocking)
+      // Server-side functions (analyze-assessment, ThankYou fallback, heal-stuck-assessments)
+      // are responsible for ensuring completion status is set correctly
+      console.log('[Assessment Submit] Attempting best-effort status update for assessment:', id);
       
-      const { data: updateData, error: updateError } = await supabase
+      supabase
         .from("assessments")
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
         })
-        .eq("id", id);
-
-      if (updateError) {
-        console.error('[Assessment Submit] Failed to update status:', updateError);
-        toast.error("Failed to mark assessment as completed. Please try again.");
-        return;
-      }
-
-      console.log('[Assessment Submit] Status updated successfully');
+        .eq("id", id)
+        .then(({ error: updateError }) => {
+          if (updateError) {
+            console.warn('[Assessment Submit] Client-side status update failed (non-critical):', updateError);
+            // Log for admin debugging, but don't block user flow
+            supabase.from("adaptation_analytics").insert({
+              assessment_id: id,
+              question_number: 0,
+              was_adapted: false,
+              adaptation_success: false,
+              fallback_used: true,
+              adaptation_context: { error: updateError.message, stage: 'client_status_update' }
+            });
+          } else {
+            console.log('[Assessment Submit] Client-side status update succeeded');
+          }
+        });
 
       // Trigger analysis in background (with error tracking)
       console.log('[Assessment Submit] Invoking analyze-assessment for ID:', id);
