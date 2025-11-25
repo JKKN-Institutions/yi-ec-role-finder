@@ -61,6 +61,8 @@ const Results = () => {
   const [animatedImpactReadiness, setAnimatedImpactReadiness] = useState(0);
 
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
     const checkAdminAccess = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -131,7 +133,7 @@ const Results = () => {
         const impactReadinessStep = impactReadinessTarget / steps;
 
         let currentStep = 0;
-        const interval = setInterval(() => {
+        intervalId = setInterval(() => {
           currentStep++;
           setAnimatedWill(Math.min(Math.round(willStep * currentStep), willTarget));
           setAnimatedSkill(Math.min(Math.round(skillStep * currentStep), skillTarget));
@@ -139,7 +141,8 @@ const Results = () => {
           setAnimatedImpactReadiness(Math.min(Math.round(impactReadinessStep * currentStep), impactReadinessTarget));
 
           if (currentStep >= steps) {
-            clearInterval(interval);
+            clearInterval(intervalId!);
+            intervalId = null;
           }
         }, duration / steps);
 
@@ -160,7 +163,14 @@ const Results = () => {
     };
 
     loadResults();
-  }, [id]);
+
+    // Cleanup: clear interval if component unmounts mid-animation
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [id, navigate]);
 
   const handleShare = () => {
     const url = `${window.location.origin}/results/${id}`;
