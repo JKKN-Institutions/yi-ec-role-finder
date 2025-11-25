@@ -1,5 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +19,7 @@ serve(async (req) => {
 
   try {
     const { 
+      assessmentId,
       questionNumber: qNum, 
       questionTitle, 
       questionType: qType, 
@@ -41,6 +44,35 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
+    }
+
+    // RATE LIMITING: Max 20 calls per assessment per 24 hours
+    if (assessmentId) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      const rateLimitResult = await checkRateLimit(supabase, {
+        key: `aihelp:${assessmentId}`,
+        limit: 20,
+        windowSeconds: 86400 // 24 hours
+      });
+
+      if (!rateLimitResult.allowed) {
+        console.warn(`AI Help rate limit exceeded for assessment: ${assessmentId}`);
+        return new Response(
+          JSON.stringify({ 
+            suggestions: [{ 
+              content: "You've used AI Help many times. Please complete your answers on your own." 
+            }],
+            questionNumber,
+            questionType,
+            rateLimited: true,
+            remaining: 0
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Build context-specific prompt based on question type
