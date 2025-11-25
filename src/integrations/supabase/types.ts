@@ -560,6 +560,36 @@ export type Database = {
           },
         ]
       }
+      impersonation_sessions: {
+        Row: {
+          admin_user_id: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          impersonated_user_email: string
+          impersonated_user_id: string
+          is_active: boolean | null
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          impersonated_user_email: string
+          impersonated_user_id: string
+          is_active?: boolean | null
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          impersonated_user_email?: string
+          impersonated_user_id?: string
+          is_active?: boolean | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -761,6 +791,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      end_impersonation: { Args: never; Returns: boolean }
+      get_active_impersonation: {
+        Args: { _user_id: string }
+        Returns: {
+          created_at: string
+          expires_at: string
+          impersonated_user_email: string
+          impersonated_user_id: string
+          session_id: string
+        }[]
+      }
       get_user_by_email: {
         Args: { user_email: string }
         Returns: {
@@ -795,6 +836,10 @@ export type Database = {
           _target_id?: string
           _target_type?: string
         }
+        Returns: string
+      }
+      start_impersonation: {
+        Args: { _target_user_email: string; _target_user_id: string }
         Returns: string
       }
     }
