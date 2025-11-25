@@ -75,18 +75,25 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const switchRole = (role: AppRole) => {
-    // Super admins can switch to any role, others only to their assigned roles
+  const switchRole = async (role: AppRole) => {
     const canSwitch = isSuperAdmin || availableRoles.includes(role);
     
     if (canSwitch) {
+      // Perform role switch immediately (always succeeds)
       setActiveRole(role);
       localStorage.setItem("activeRole", role);
       
-      // Log role switch
-      supabase.auth.getUser().then(({ data: { user } }) => {
+      // Log role switch (fire-and-forget with error handling)
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.warn("Failed to get user for role switch logging:", userError.message);
+          return;
+        }
+        
         if (user) {
-          supabase.rpc("log_admin_action", {
+          const { error: logError } = await supabase.rpc("log_admin_action", {
             _admin_user_id: user.id,
             _admin_email: user.email || "",
             _action_type: isSuperAdmin && !availableRoles.includes(role) 
@@ -94,8 +101,14 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
               : "role_switch",
             _details: { new_role: role, is_impersonation: isSuperAdmin },
           });
+          
+          if (logError) {
+            console.warn("Failed to log role switch action:", logError.message);
+          }
         }
-      });
+      } catch (error) {
+        console.warn("Unexpected error during role switch logging:", error);
+      }
     }
   };
 
