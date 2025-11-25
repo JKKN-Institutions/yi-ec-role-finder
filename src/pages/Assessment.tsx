@@ -574,36 +574,37 @@ const Assessment = () => {
     try {
       await saveResponse();
 
-      // STEP 2: Best-effort client-side status update (non-blocking)
-      // Server-side functions (analyze-assessment, ThankYou fallback, heal-stuck-assessments)
-      // are responsible for ensuring completion status is set correctly
-      console.log('[Assessment Submit] Attempting best-effort status update for assessment:', id);
+      // Await status update before navigating (critical for completion)
+      console.log('[Assessment Submit] Updating status for assessment:', id);
       
-      supabase
+      const { error: statusUpdateError } = await supabase
         .from("assessments")
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
         })
-        .eq("id", id)
-        .then(({ error: updateError }) => {
-          if (updateError) {
-            console.warn('[Assessment Submit] Client-side status update failed (non-critical):', updateError);
-            // Log for admin debugging, but don't block user flow
-            supabase.from("adaptation_analytics").insert({
-              assessment_id: id,
-              question_number: 0,
-              was_adapted: false,
-              adaptation_success: false,
-              fallback_used: true,
-              adaptation_context: { error: updateError.message, stage: 'client_status_update' }
-            });
-          } else {
-            console.log('[Assessment Submit] Client-side status update succeeded');
-          }
-        });
+        .eq("id", id);
 
-      // Trigger analysis in background (with error tracking)
+      if (statusUpdateError) {
+        console.error('[Assessment Submit] Status update failed:', statusUpdateError);
+        toast.error("Failed to complete assessment. Please try again.");
+        
+        // Log for admin debugging (fire-and-forget)
+        supabase.from("adaptation_analytics").insert({
+          assessment_id: id,
+          question_number: 0,
+          was_adapted: false,
+          adaptation_success: false,
+          fallback_used: true,
+          adaptation_context: { error: statusUpdateError.message, stage: 'client_status_update' }
+        });
+        
+        return; // Don't navigate - let user retry
+      }
+      
+      console.log('[Assessment Submit] Status update succeeded');
+
+      // Trigger analysis in background (fire-and-forget, can run after navigation)
       console.log('[Assessment Submit] Invoking analyze-assessment for ID:', id);
       
       supabase.functions.invoke("analyze-assessment", {
@@ -612,7 +613,6 @@ const Assessment = () => {
       .then(({ data, error }) => {
         if (error) {
           console.error('[Assessment Submit] analyze-assessment failed:', error);
-          // Log to analytics for admin visibility
           supabase.from("adaptation_analytics").insert({
             assessment_id: id,
             question_number: 0,
@@ -629,7 +629,7 @@ const Assessment = () => {
         console.error('[Assessment Submit] analyze-assessment exception:', err);
       });
 
-      // Navigate to thank you page immediately (don't wait for analysis)
+      // Navigate to thank you page (only after status update confirmed)
       navigate(`/thank-you?id=${id}`);
     } catch (error) {
       console.error('[Assessment Submit] Error during submission:', error);
