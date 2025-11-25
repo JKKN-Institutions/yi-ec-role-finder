@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,6 +38,26 @@ serve(async (req) => {
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // RATE LIMITING: Max 5 calls per assessment per hour
+    const rateLimitResult = await checkRateLimit(supabase, {
+      key: `analyze:${assessmentId}`,
+      limit: 5,
+      windowSeconds: 3600 // 1 hour
+    });
+
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for assessment: ${assessmentId}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Rate limit exceeded', 
+          message: 'This assessment has been analyzed too many times. Please wait before trying again.',
+          resetAt: rateLimitResult.resetAt,
+          success: false
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // 1. FETCH ASSESSMENT DATA
     const { data: assessment } = await supabase

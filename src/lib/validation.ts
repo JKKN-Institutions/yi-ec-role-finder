@@ -87,34 +87,5 @@ export const sanitizeInput = (input: string): string => {
   return input.replace(/[';--]/g, "").trim();
 };
 
-// Rate limiting helper
-export const checkRateLimit = async (
-  key: string,
-  limit: number,
-  windowSeconds: number,
-  storage: Storage = localStorage
-): Promise<boolean> => {
-  const now = Date.now();
-  const storageKey = `ratelimit_${key}`;
-  const stored = storage.getItem(storageKey);
-
-  if (!stored) {
-    storage.setItem(storageKey, JSON.stringify({ count: 1, resetAt: now + windowSeconds * 1000 }));
-    return true;
-  }
-
-  const data = JSON.parse(stored);
-
-  if (now > data.resetAt) {
-    storage.setItem(storageKey, JSON.stringify({ count: 1, resetAt: now + windowSeconds * 1000 }));
-    return true;
-  }
-
-  if (data.count >= limit) {
-    return false;
-  }
-
-  data.count++;
-  storage.setItem(storageKey, JSON.stringify(data));
-  return true;
-};
+// Note: Rate limiting is now handled server-side in edge functions
+// See supabase/functions/_shared/rate-limit.ts

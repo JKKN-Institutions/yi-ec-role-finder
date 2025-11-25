@@ -727,6 +727,7 @@ const Assessment = () => {
     try {
       const { data, error } = await supabase.functions.invoke('ai-help-assessment', {
         body: {
+          assessmentId: id, // Include assessmentId for rate limiting
           questionNumber: currentQuestion,
           questionTitle: question.title,
           questionType: question.type,
