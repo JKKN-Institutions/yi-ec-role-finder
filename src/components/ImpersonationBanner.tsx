@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, LogOut, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
 import { useRole } from "@/contexts/RoleContext";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { hasPermission, ROLE_LABELS } from "@/lib/roleHierarchy";
 import {
   Collapsible,
@@ -29,50 +28,17 @@ const adminFeatures = [
 ];
 
 export function ImpersonationBanner() {
-  const [isImpersonating, setIsImpersonating] = useState(false);
-  const [impersonatedEmail, setImpersonatedEmail] = useState("");
   const [showHidden, setShowHidden] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
   const { activeRole } = useRole();
+  const { isImpersonating, impersonatedUser, endImpersonation, isLoading } = useImpersonation();
 
-  useEffect(() => {
-    const impersonating = localStorage.getItem("impersonating") === "true";
-    const email = localStorage.getItem("impersonated_user_email") || "";
-    setIsImpersonating(impersonating);
-    setImpersonatedEmail(email);
-  }, []);
-
-  const exitImpersonation = async () => {
-    // Log the exit
-    const originalUserId = localStorage.getItem("original_user_id");
-    const originalEmail = localStorage.getItem("original_user_email");
-    
-    if (originalUserId && originalEmail) {
-      await supabase.rpc("log_admin_action", {
-        _admin_user_id: originalUserId,
-        _admin_email: originalEmail,
-        _action_type: "exit_impersonation",
-        _details: { 
-          was_impersonating: impersonatedEmail,
-          timestamp: new Date().toISOString()
-        },
-      });
-    }
-
-    // Clear impersonation data
-    localStorage.removeItem("impersonating");
-    localStorage.removeItem("impersonated_user_id");
-    localStorage.removeItem("impersonated_user_email");
-    localStorage.removeItem("original_user_id");
-    localStorage.removeItem("original_user_email");
-
-    toast.success("Exited impersonation mode");
-    navigate("/admin");
-    window.location.reload();
+  const handleExitImpersonation = async () => {
+    await endImpersonation();
+    window.location.href = "/admin";
   };
 
-  if (!isImpersonating) {
+  if (isLoading || !isImpersonating || !impersonatedUser) {
     return null;
   }
 
@@ -80,12 +46,6 @@ export function ImpersonationBanner() {
   const hiddenFeatures = activeRole 
     ? adminFeatures.filter(feature => 
         feature.permission && !hasPermission(activeRole, feature.permission)
-      )
-    : [];
-
-  const availableFeatures = activeRole
-    ? adminFeatures.filter(feature => 
-        !feature.permission || hasPermission(activeRole, feature.permission)
       )
     : [];
 
@@ -99,7 +59,7 @@ export function ImpersonationBanner() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span>
-              <strong>Impersonation Mode:</strong> You are viewing as {impersonatedEmail}
+              <strong>Impersonation Mode:</strong> You are viewing as {impersonatedUser.email}
             </span>
             {activeRole && (
               <Badge variant="secondary" className="gap-1">
@@ -111,7 +71,7 @@ export function ImpersonationBanner() {
           <Button
             variant="outline"
             size="sm"
-            onClick={exitImpersonation}
+            onClick={handleExitImpersonation}
             className="gap-2"
           >
             <LogOut className="h-4 w-4" />

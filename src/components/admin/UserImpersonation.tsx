@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useRole } from "@/contexts/RoleContext";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 
 export function UserImpersonation() {
   const [open, setOpen] = useState(false);
@@ -23,6 +24,7 @@ export function UserImpersonation() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { isSuperAdmin } = useRole();
+  const { startImpersonation } = useImpersonation();
 
   if (!isSuperAdmin) {
     return null;
@@ -50,35 +52,15 @@ export function UserImpersonation() {
 
       const targetUser = userData[0];
 
-      // Log the impersonation attempt
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (currentUser) {
-        await supabase.rpc("log_admin_action", {
-          _admin_user_id: currentUser.id,
-          _admin_email: currentUser.email || "",
-          _action_type: "user_impersonation",
-          _target_type: "user",
-          _target_id: targetUser.id,
-          _details: { 
-            impersonated_email: email.trim().toLowerCase(),
-            timestamp: new Date().toISOString()
-          },
-        });
-      }
-
-      // Store impersonation data
-      localStorage.setItem("impersonating", "true");
-      localStorage.setItem("impersonated_user_id", targetUser.id);
-      localStorage.setItem("impersonated_user_email", email.trim().toLowerCase());
-      localStorage.setItem("original_user_id", currentUser?.id || "");
-      localStorage.setItem("original_user_email", currentUser?.email || "");
-
-      toast.success(`Now impersonating ${email}`);
-      setOpen(false);
+      // Start server-side impersonation session
+      const success = await startImpersonation(targetUser.id, email.trim().toLowerCase());
       
-      // Redirect to user view
-      navigate("/");
-      window.location.reload();
+      if (success) {
+        setOpen(false);
+        setEmail("");
+        navigate("/");
+        window.location.reload();
+      }
     } catch (error) {
       console.error("Error impersonating user:", error);
       toast.error("Failed to impersonate user");
